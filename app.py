@@ -24,11 +24,12 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 98% !important; }
-    .main { background-color: #0e1117; }
-    div[data-testid="stMetricValue"] { font-size: 1.2rem !important; }
-    .stMetric { background-color: #161a23; padding: 12px; border-radius: 8px; border: 1px solid #2d3139; }
-    .stChatInput { border-color: #2d3139 !important; }
+    .block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 98% !important; }
+    .main { background-color: #0b0e14; }
+    div[data-testid="stMetricValue"] { font-size: 1.25rem !important; font-weight: bold; }
+    .stMetric { background-color: #141824; padding: 12px; border-radius: 8px; border: 1px solid #232a3b; }
+    .stChatInput { border-color: #2a344a !important; }
+    .stButton>button { border-radius: 6px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -51,8 +52,10 @@ if "sprint_results" not in st.session_state:
     st.session_state.sprint_results = None
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "🏛️ **Desk**: Operational. Submit your prompt to evaluate momentum risk."}
+        {"role": "assistant", "content": "🏛️ **Desk**: Operational. Quantitative & Risk agents standing by for prompt orders."}
     ]
+if "quick_prompt" not in st.session_state:
+    st.session_state.quick_prompt = None
 
 # 4. API Key Management (Sidebar)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -113,7 +116,7 @@ def query_agent_llm(prompt: str, context: dict) -> str:
     if not GEMINI_API_KEY:
         return "⚠️ **System**: Missing Gemini API Key. Cannot process."
 
-    system_instruction = "You are an institutional multi-agent trading desk. Keep answers concise, direct, and actionable."
+    system_instruction = "You are an institutional multi-agent trading desk. Keep answers concise, direct, and highly actionable."
     full_prompt = f"Market Context for {context['ticker']}: {context}\n\nUser Question: {prompt}"
     last_error = ""
 
@@ -172,9 +175,9 @@ def query_agent_llm(prompt: str, context: dict) -> str:
 
     return f"⚠️ **AI Agent Desk Error**: Query failed. Details: `{last_error}`"
 
-# 7. Main UI Header
+# 7. Main UI Header & Watchlist Selector
 st.title("🏛️ JC TRADING HOUSE")
-st.caption("Institutional Multi-Agent Trading Desk & Real-time Market Analytics")
+st.caption("Institutional Multi-Agent Trading Desk & Real-time Telemetry Operations")
 
 col_sel, col_add, col_del = st.columns([2, 1, 1])
 with col_sel:
@@ -202,8 +205,6 @@ with col_del:
         else:
             st.error("Min 1 asset.")
 
-st.markdown("<br>", unsafe_allow_html=True)
-
 df_current = fetch_asset_data(st.session_state.current_ticker, st.session_state.chart_timeframe)
 indicators = compute_indicators(df_current)
 indicators['ticker'] = st.session_state.current_ticker
@@ -215,7 +216,9 @@ kpi3.metric("RSI (14)", indicators['rsi'])
 kpi4.metric("20-SMA Trend", indicators['trend'])
 kpi5.metric("ATR Volatility", f"${indicators['atr']}")
 
-# 8. Animated Pixel Floor Engine with Ticker & News Stream
+st.markdown("<br>", unsafe_allow_html=True)
+
+# 8. High-Detail Animated Pixel Floor Engine
 pixel_floor_html = """
 <!DOCTYPE html>
 <html>
@@ -224,19 +227,18 @@ pixel_floor_html = """
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0e14; font-family: 'Courier New', monospace; }
   .canvas-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-  canvas { display: block; width: 100%; height: 100%; max-height: 440px; border: 2px solid #232838; border-radius: 10px; background: #0e121b; image-rendering: pixelated; }
+  canvas { display: block; width: 100%; height: 100%; max-height: 520px; border: 2px solid #232838; border-radius: 10px; background: #0c0f17; image-rendering: pixelated; }
 </style>
 </head>
 <body>
 <div class="canvas-container">
-  <canvas id="tradingFloor" width="1200" height="420"></canvas>
+  <canvas id="tradingFloor" width="1200" height="500"></canvas>
 </div>
 <script>
 const canvas = document.getElementById('tradingFloor');
 const ctx = canvas.getContext('2d');
 let frame = 0;
 
-// Stock Ticker & News State
 let tickerOffset = 0;
 let newsOffset = 0;
 
@@ -250,15 +252,15 @@ const stockTickerItems = [
 ];
 
 const newsHeadlines = [
-  "⚡ [MARKET BREAKING]: US FED PREPARES LIQUIDITY INJECTION",
-  "📈 [QUANT LAB]: HIGH-FREQUENCY MOMENTUM SIGNAL DETECTED ON NVDA & BTC",
-  "🛡️ [RISK MONITOR]: PORTFOLIO VAR MAINTAINED AT 95% CONFIDENCE",
-  "☕ [TRADING FLOOR]: MARCUS (CIO) CALLS STRATEGY SPRINT FOR Q4 ASSET ALLOCATION",
-  "🌐 [TELEMETRY]: SERVER ARRAY RUNNING AT 99.98% UPTIME"
+  "⚡ [QUANT ENGINE]: REAL-TIME MOMENTUM MATRIX ONLINE",
+  "📈 [MARKET BREAKING]: US FED PREPARES LIQUIDITY INJECTION",
+  "🛡️ [RISK MONITOR]: VaR MAINTAINED WITHIN 95% PARAMETERS",
+  "🏛️ [CIO DESK]: MARCUS DISPATCHING Q4 STRATEGY ALLOCATION",
+  "☕ [PANTRY]: ESPRESSO BARISTA STATION OPERATIONAL"
 ];
 
 class StaffMember {
-  constructor(name, title, deskX, deskY, shirtColor, hairColor, roleBadge) {
+  constructor(name, title, deskX, deskY, shirtColor, hairColor, roleBadge, thoughts) {
     this.name = name;
     this.title = title;
     this.deskX = deskX; 
@@ -268,8 +270,10 @@ class StaffMember {
     this.shirtColor = shirtColor;
     this.hairColor = hairColor;
     this.roleBadge = roleBadge;
+    this.thoughts = thoughts;
+    this.currentThought = thoughts[0];
     this.state = 'DESK';
-    this.timer = Math.floor(Math.random() * 120) + 60;
+    this.timer = Math.floor(Math.random() * 120) + 80;
     this.targetX = deskX; 
     this.targetY = deskY;
     this.destName = '';
@@ -279,15 +283,22 @@ class StaffMember {
     if (this.state === 'DESK') {
       this.timer--;
       if (this.timer <= 0) {
-        if (Math.random() < 0.5) {
-          this.targetX = 1080 + Math.random() * 40; 
+        const rand = Math.random();
+        if (rand < 0.3) {
+          this.targetX = 1080 + Math.random() * 30; 
+          this.targetY = 280;
           this.destName = 'PANTRY';
-        } else {
-          this.targetX = 100 + Math.random() * 40; 
+        } else if (rand < 0.6) {
+          this.targetX = 90 + Math.random() * 30; 
+          this.targetY = 280;
           this.destName = 'SERVERS';
+        } else {
+          this.targetX = 580 + Math.random() * 40; 
+          this.targetY = 165;
+          this.destName = 'WHITEBOARD';
         }
-        this.targetY = 240; 
         this.state = 'WALKING_OUT';
+        this.currentThought = this.thoughts[Math.floor(Math.random() * this.thoughts.length)];
       }
     } else if (this.state === 'WALKING_OUT') {
       const dx = this.targetX - this.x, dy = this.targetY - this.y;
@@ -295,10 +306,10 @@ class StaffMember {
       if (dist < 4) {
         this.x = this.targetX; this.y = this.targetY;
         this.state = 'AT_DEST'; 
-        this.timer = Math.floor(Math.random() * 140) + 80;
+        this.timer = Math.floor(Math.random() * 160) + 100;
       } else {
-        this.x += (dx / dist) * 2.0; 
-        this.y += (dy / dist) * 2.0;
+        this.x += (dx / dist) * 2.2; 
+        this.y += (dy / dist) * 2.2;
       }
     } else if (this.state === 'AT_DEST') {
       this.timer--;
@@ -313,18 +324,19 @@ class StaffMember {
       if (dist < 4) {
         this.x = this.deskX; this.y = this.deskY;
         this.state = 'DESK'; 
-        this.timer = Math.floor(Math.random() * 180) + 100;
+        this.timer = Math.floor(Math.random() * 200) + 120;
       } else {
-        this.x += (dx / dist) * 2.0; 
-        this.y += (dy / dist) * 2.0;
+        this.x += (dx / dist) * 2.2; 
+        this.y += (dy / dist) * 2.2;
       }
     }
   }
 
   draw() {
     const isWalking = (this.state === 'WALKING_OUT' || this.state === 'WALKING_BACK');
-    const bob = (this.state === 'DESK') ? Math.sin(frame * 0.12) * 2 : 0;
-    const legOffset = isWalking ? Math.sin(frame * 0.25) * 6 : 0;
+    const bob = (this.state === 'DESK') ? Math.sin(frame * 0.15) * 2 : 0;
+    const typingHand = (this.state === 'DESK') ? Math.sin(frame * 0.4) * 3 : 0;
+    const legOffset = isWalking ? Math.sin(frame * 0.28) * 6 : 0;
 
     // Head / Hair
     ctx.fillStyle = this.hairColor;
@@ -342,6 +354,13 @@ class StaffMember {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(this.x - 3, this.y - 20 + bob, 6, 8);
 
+    // Arms / Typing
+    if (this.state === 'DESK') {
+      ctx.fillStyle = '#f1c27d';
+      ctx.fillRect(this.x - 14, this.y - 10 + typingHand, 5, 8);
+      ctx.fillRect(this.x + 9, this.y - 10 - typingHand, 5, 8);
+    }
+
     // Legs
     ctx.fillStyle = '#1e2530';
     if (isWalking) {
@@ -351,62 +370,78 @@ class StaffMember {
       ctx.fillRect(this.x - 9, this.y - 2 + bob, 18, 16);
     }
 
-    // Floating Badge
-    let actionTag = "📊 DESK";
-    if (this.state === 'AT_DEST') actionTag = (this.destName === 'PANTRY') ? "☕ PANTRY" : "⚙️ SERVERS";
-    else if (isWalking) actionTag = "🚶 MOVING";
+    // Floating Badge & Speech Bubble
+    let actionTag = "💻 TYPING";
+    if (this.state === 'AT_DEST') {
+      if (this.destName === 'PANTRY') actionTag = "☕ PANTRY";
+      else if (this.destName === 'SERVERS') actionTag = "⚙️ SERVERS";
+      else actionTag = "📊 WHITEBOARD";
+    } else if (isWalking) {
+      actionTag = "🚶 MOVING";
+    }
 
     const labelText = `${this.roleBadge} ${this.name} [${actionTag}]`;
-    ctx.font = 'bold 12px monospace';
-    const textWidth = ctx.measureText(labelText).width + 16;
+    ctx.font = 'bold 11px monospace';
+    const textWidth = ctx.measureText(labelText).width + 14;
 
-    ctx.fillStyle = 'rgba(15, 20, 30, 0.95)';
-    ctx.fillRect(this.x - textWidth/2, this.y - 68 + bob, textWidth, 22);
+    ctx.fillStyle = 'rgba(12, 16, 25, 0.95)';
+    ctx.fillRect(this.x - textWidth/2, this.y - 68 + bob, textWidth, 20);
     ctx.strokeStyle = this.shirtColor;
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(this.x - textWidth/2, this.y - 68 + bob, textWidth, 22);
+    ctx.strokeRect(this.x - textWidth/2, this.y - 68 + bob, textWidth, 20);
 
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(labelText, this.x, this.y - 53 + bob);
+    ctx.fillText(labelText, this.x, this.y - 54 + bob);
+
+    // Thought Bubble
+    if (Math.sin(frame * 0.05 + this.x) > 0.3) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillRect(this.x + 20, this.y - 85 + bob, 110, 22);
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+      ctx.strokeRect(this.x + 20, this.y - 85 + bob, 110, 22);
+      ctx.fillStyle = '#111'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      ctx.fillText(`💬 "${this.currentThought}"`, this.x + 24, y = this.y - 70 + bob);
+    }
   }
 }
 
 const staffMembers = [
-  new StaffMember('ALEX', 'QUANT', 340, 230, '#2ecc71', '#f39c12', '📈'),
-  new StaffMember('MARCUS', 'CIO', 600, 230, '#3498db', '#e67e22', '🏛️'),
-  new StaffMember('SARAH', 'RISK', 860, 230, '#e74c3c', '#9b59b6', '🛡️')
+  new StaffMember('ALEX', 'QUANT', 270, 280, '#2ecc71', '#f39c12', '📈', ['Checking RSI', 'Backtesting...', 'Alpha Found!']),
+  new StaffMember('MARCUS', 'CIO', 500, 280, '#3498db', '#e67e22', '🏛️', ['Rebalancing', 'Check Volatility', 'Macro Shift']),
+  new StaffMember('SARAH', 'RISK', 730, 280, '#e74c3c', '#9b59b6', '🛡️', ['VaR Safe', 'Check Exposure', 'Stress Test']),
+  new StaffMember('ELENA', 'DEV', 950, 280, '#9b59b6', '#34495e', '⚡', ['HFT Low Latency', 'Fixing API', 'Server Green'])
 ];
 
 function drawEnvironment() {
-  // Slate Floor Tiles
+  // Tile Flooring
   for (let x = 0; x < canvas.width; x += 40) {
     for (let y = 40; y < canvas.height - 30; y += 40) {
-      ctx.fillStyle = ((x + y) % 80 === 0) ? '#111520' : '#141926';
+      ctx.fillStyle = ((x + y) % 80 === 0) ? '#101420' : '#131826';
       ctx.fillRect(x, y, 40, 40);
-      ctx.strokeStyle = '#1a2030';
+      ctx.strokeStyle = '#1a2133';
       ctx.lineWidth = 0.5;
       ctx.strokeRect(x, y, 40, 40);
     }
   }
 
   // Top Telemetry Header
-  ctx.fillStyle = '#161b26';
+  ctx.fillStyle = '#141824';
   ctx.fillRect(0, 0, canvas.width, 40);
-  ctx.strokeStyle = '#2d3548';
+  ctx.strokeStyle = '#283144';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, 40); ctx.lineTo(canvas.width, 40); ctx.stroke();
 
   ctx.fillStyle = '#2ecc71'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'left';
-  ctx.fillText("● JC TRADING HOUSE — MAIN TRADING FLOOR & TELEMETRY DESK", 15, 25);
+  ctx.fillText("● JC TRADING HOUSE — MAIN FLOOR & TELEMETRY DESK", 15, 25);
 
-  // Moving Live Stock Ticker Stream
+  // Top Moving Stock Ticker
   tickerOffset = (tickerOffset + 1.2) % 1200;
-  ctx.fillStyle = '#111522'; ctx.fillRect(520, 6, 560, 28);
-  ctx.strokeStyle = '#323c52'; ctx.strokeRect(520, 6, 560, 28);
+  ctx.fillStyle = '#0d111a'; ctx.fillRect(480, 6, 600, 28);
+  ctx.strokeStyle = '#2d374d'; ctx.strokeRect(480, 6, 600, 28);
   
   ctx.save();
-  ctx.beginPath(); ctx.rect(522, 8, 556, 24); ctx.clip();
+  ctx.beginPath(); ctx.rect(482, 8, 596, 24); ctx.clip();
   let tickerX = 1080 - tickerOffset;
   ctx.font = 'bold 12px monospace'; ctx.textAlign = 'left';
   stockTickerItems.forEach(item => {
@@ -422,89 +457,127 @@ function drawEnvironment() {
   ctx.beginPath(); ctx.arc(1115, 20, 5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px monospace'; ctx.fillText("LIVE", 1125, 24);
 
-  // Server Array (Left)
-  ctx.fillStyle = '#181d2a'; ctx.fillRect(20, 55, 160, 330);
-  ctx.strokeStyle = '#2a3347'; ctx.lineWidth = 2; ctx.strokeRect(20, 55, 160, 330);
-  ctx.fillStyle = '#00f0ff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
-  ctx.fillText("🖥️ SERVER ARRAY", 100, 75);
+  // Wall-Mounted Bloomberg TV (Top Center)
+  ctx.fillStyle = '#090c12'; ctx.fillRect(480, 55, 240, 85);
+  ctx.strokeStyle = '#3a4763'; ctx.lineWidth = 2; ctx.strokeRect(480, 55, 240, 85);
+  ctx.fillStyle = '#f39c12'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText("📺 BLOOMBERG TERMINAL FEED", 600, 70);
+  
+  // Sine chart on Bloomberg TV
+  ctx.strokeStyle = '#00f0ff'; ctx.lineWidth = 1.5; ctx.beginPath();
+  for (let px = 0; px < 210; px += 5) {
+    let py = 105 + Math.sin((frame + px) * 0.08) * 15;
+    if (px === 0) ctx.moveTo(495 + px, py); else ctx.lineTo(495 + px, py);
+  }
+  ctx.stroke();
 
-  for (let r = 0; r < 3; r++) {
-    let ry = 90 + r * 95;
-    ctx.fillStyle = '#0f131d'; ctx.fillRect(35, ry, 130, 80);
-    ctx.strokeStyle = '#3b4661'; ctx.strokeRect(35, ry, 130, 80);
+  // Whiteboard Strategy Board (Top Middle-Left)
+  ctx.fillStyle = '#e8ecef'; ctx.fillRect(260, 55, 190, 85);
+  ctx.strokeStyle = '#b0b7c0'; ctx.lineWidth = 3; ctx.strokeRect(260, 55, 190, 85);
+  ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText("📋 STRATEGY BOARD", 355, 72);
+  ctx.fillStyle = '#e74c3c'; ctx.font = '10px monospace'; ctx.fillText("VAR LIMIT: < 2.5%", 355, 88);
+  ctx.fillStyle = '#27ae60'; ctx.fillText("MOMENTUM: BULL RUN", 355, 102);
+  ctx.fillStyle = '#2980b9'; ctx.fillText("TARGET: +15% ALLOC", 355, 116);
+
+  // Server Array (Left)
+  ctx.fillStyle = '#141824'; ctx.fillRect(20, 55, 150, 400);
+  ctx.strokeStyle = '#2a3448'; ctx.lineWidth = 2; ctx.strokeRect(20, 55, 150, 400);
+  ctx.fillStyle = '#00f0ff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText("🖥️ HIGH-SPEED SERVERS", 95, 75);
+
+  for (let r = 0; r < 4; r++) {
+    let ry = 90 + r * 88;
+    ctx.fillStyle = '#0c0f17'; ctx.fillRect(32, ry, 126, 75);
+    ctx.strokeStyle = '#323f57'; ctx.strokeRect(32, ry, 126, 75);
     for (let slot = 0; slot < 4; slot++) {
-      ctx.fillStyle = '#1a2233'; ctx.fillRect(42, ry + 8 + slot * 16, 116, 12);
+      ctx.fillStyle = '#182030'; ctx.fillRect(38, ry + 6 + slot * 16, 114, 11);
       let ledOn = (Math.sin(frame * 0.2 + r + slot) > 0);
       ctx.fillStyle = ledOn ? (slot % 2 === 0 ? '#2ecc71' : '#00f0ff') : '#444';
-      ctx.fillRect(142, ry + 12 + slot * 16, 10, 4);
+      ctx.fillRect(138, ry + 10 + slot * 16, 8, 4);
     }
   }
 
-  // Pantry & Lounge (Right)
-  ctx.fillStyle = '#181d2a'; ctx.fillRect(1020, 55, 160, 330);
-  ctx.strokeStyle = '#2a3347'; ctx.lineWidth = 2; ctx.strokeRect(1020, 55, 160, 330);
-  ctx.fillStyle = '#f39c12'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
-  ctx.fillText("☕ PANTRY & BREAKROOM", 1100, 75);
+  // Pantry & Coffee Lounge (Right)
+  ctx.fillStyle = '#141824'; ctx.fillRect(1030, 55, 150, 400);
+  ctx.strokeStyle = '#2a3448'; ctx.lineWidth = 2; ctx.strokeRect(1030, 55, 150, 400);
+  ctx.fillStyle = '#f39c12'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText("☕ BARISTA LOUNGE", 1105, 75);
 
-  ctx.fillStyle = '#2c3e50'; ctx.fillRect(1040, 110, 120, 70);
-  ctx.fillStyle = '#e67e22'; ctx.fillRect(1055, 130, 30, 40);
-  let steamY = (frame * 1.5) % 30;
+  // Coffee Machine & Water Cooler
+  ctx.fillStyle = '#2c3e50'; ctx.fillRect(1050, 110, 110, 65);
+  ctx.fillStyle = '#e67e22'; ctx.fillRect(1065, 130, 25, 35);
+  let steamY = (frame * 1.5) % 25;
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.beginPath(); ctx.arc(1070, 125 - steamY, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1077, 125 - steamY, 3, 0, Math.PI * 2); ctx.fill();
 
-  ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1135, 220, 14, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ecf0f1'; ctx.fillRect(1125, 234, 20, 40);
+  // Water Cooler Bubbles
+  ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1135, 230, 14, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ecf0f1'; ctx.fillRect(1125, 244, 20, 35);
+  if (frame % 20 < 10) {
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(1135, 232, 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Potted Monstera Plants
+  ctx.fillStyle = '#7f8c8d'; ctx.fillRect(190, 400, 25, 30);
+  ctx.fillStyle = '#27ae60';
+  ctx.beginPath(); ctx.arc(195, 390, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(210, 392, 10, 0, Math.PI * 2); ctx.fill();
 
   // Workstations
   const workstations = [
-    { name: "QUANT LAB (ALEX)", x: 340, y: 230, accent: "#2ecc71" },
-    { name: "CIO DESK (MARCUS)", x: 600, y: 230, accent: "#3498db" },
-    { name: "RISK DESK (SARAH)", x: 860, y: 230, accent: "#e74c3c" }
+    { name: "QUANT (ALEX)", x: 270, y: 280, accent: "#2ecc71" },
+    { name: "CIO (MARCUS)", x: 500, y: 280, accent: "#3498db" },
+    { name: "RISK (SARAH)", x: 730, y: 280, accent: "#e74c3c" },
+    { name: "DEV (ELENA)", x: 950, y: 280, accent: "#9b59b6" }
   ];
 
   workstations.forEach(ws => {
-    ctx.fillStyle = '#222838'; ctx.fillRect(ws.x - 85, ws.y + 10, 170, 55);
-    ctx.strokeStyle = '#3d4863'; ctx.lineWidth = 2; ctx.strokeRect(ws.x - 85, ws.y + 10, 170, 55);
+    // Desk Surface
+    ctx.fillStyle = '#1e2433'; ctx.fillRect(ws.x - 70, ws.y + 10, 140, 50);
+    ctx.strokeStyle = '#35425e'; ctx.lineWidth = 1.5; ctx.strokeRect(ws.x - 70, ws.y + 10, 140, 50);
     
-    ctx.fillStyle = '#121622'; ctx.fillRect(ws.x - 85, ws.y - 95, 170, 24);
-    ctx.strokeStyle = ws.accent; ctx.lineWidth = 1.5; ctx.strokeRect(ws.x - 85, ws.y - 95, 170, 24);
-    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(ws.name, ws.x, ws.y - 79);
+    // Desk Banner Tag
+    ctx.fillStyle = '#0f131c'; ctx.fillRect(ws.x - 70, ws.y - 92, 140, 22);
+    ctx.strokeStyle = ws.accent; ctx.lineWidth = 1.5; ctx.strokeRect(ws.x - 70, ws.y - 92, 140, 22);
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(ws.name, ws.x, ws.y - 77);
 
-    // Center Monitor (Candlesticks)
-    ctx.fillStyle = '#0a0d14'; ctx.fillRect(ws.x - 35, ws.y - 60, 70, 48);
-    ctx.strokeStyle = ws.accent; ctx.lineWidth = 1.5; ctx.strokeRect(ws.x - 35, ws.y - 60, 70, 48);
+    // Center Candlestick Monitor
+    ctx.fillStyle = '#080b12'; ctx.fillRect(ws.x - 30, ws.y - 60, 60, 42);
+    ctx.strokeStyle = ws.accent; ctx.lineWidth = 1.5; ctx.strokeRect(ws.x - 30, ws.y - 60, 60, 42);
     
-    let chartShift = Math.sin(frame * 0.1) * 3;
-    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x - 25, ws.y - 45 + chartShift, 6, 20);
-    ctx.fillStyle = '#e74c3c'; ctx.fillRect(ws.x - 12, ws.y - 50 - chartShift, 6, 25);
-    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x + 2, ws.y - 38 + chartShift, 6, 18);
-    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x + 15, ws.y - 52 - chartShift, 6, 30);
+    let chartShift = Math.sin(frame * 0.12 + ws.x) * 3;
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x - 20, ws.y - 48 + chartShift, 5, 18);
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(ws.x - 10, ws.y - 52 - chartShift, 5, 22);
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x + 2, ws.y - 40 + chartShift, 5, 16);
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x + 12, ws.y - 54 - chartShift, 5, 26);
 
     // Side Monitors
-    ctx.fillStyle = '#0a0d14'; ctx.fillRect(ws.x - 78, ws.y - 52, 38, 38);
-    ctx.strokeStyle = '#2d364d'; ctx.strokeRect(ws.x - 78, ws.y - 52, 38, 38);
-    ctx.fillStyle = '#00f0ff'; ctx.fillRect(ws.x - 72, ws.y - 44, 26, 3);
-    ctx.fillRect(ws.x - 72, ws.y - 36, 20, 3);
+    ctx.fillStyle = '#080b12'; ctx.fillRect(ws.x - 65, ws.y - 52, 32, 32);
+    ctx.strokeStyle = '#273147'; ctx.strokeRect(ws.x - 65, ws.y - 52, 32, 32);
+    ctx.fillStyle = '#00f0ff'; ctx.fillRect(ws.x - 60, ws.y - 45, 22, 2);
+    ctx.fillRect(ws.x - 60, ws.y - 38, 16, 2);
 
-    ctx.fillStyle = '#0a0d14'; ctx.fillRect(ws.x + 40, ws.y - 52, 38, 38);
-    ctx.strokeStyle = '#2d364d'; ctx.strokeRect(ws.x + 40, ws.y - 52, 38, 38);
-    ctx.fillStyle = '#f1c40f'; ctx.fillRect(ws.x + 46, ws.y - 42, 26, 18);
+    ctx.fillStyle = '#080b12'; ctx.fillRect(ws.x + 33, ws.y - 52, 32, 32);
+    ctx.strokeStyle = '#273147'; ctx.strokeRect(ws.x + 33, ws.y - 52, 32, 32);
+    ctx.fillStyle = '#f1c40f'; ctx.fillRect(ws.x + 38, ws.y - 44, 22, 16);
 
-    ctx.fillStyle = '#121622'; ctx.fillRect(ws.x - 22, ws.y + 16, 44, 12);
-    ctx.fillStyle = ws.accent; ctx.fillRect(ws.x - 20, ws.y + 58, 40, 8);
+    // Keyboard & Coffee Mug
+    ctx.fillStyle = '#10141f'; ctx.fillRect(ws.x - 18, ws.y + 14, 36, 10);
+    ctx.fillStyle = ws.accent; ctx.fillRect(ws.x + 24, ws.y + 16, 6, 8);
   });
 
   // Bottom Live News Ticker Bar
-  ctx.fillStyle = '#0a0d14'; ctx.fillRect(0, 390, canvas.width, 30);
-  ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1; ctx.strokeRect(0, 390, canvas.width, 30);
+  ctx.fillStyle = '#080b12'; ctx.fillRect(0, 470, canvas.width, 30);
+  ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1; ctx.strokeRect(0, 470, canvas.width, 30);
   
   newsOffset = (newsOffset + 1.5) % 2400;
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, 390, canvas.width, 30); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, 470, canvas.width, 30); ctx.clip();
   ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'left';
   let fullNewsText = newsHeadlines.join("  ---  ");
-  ctx.fillText(fullNewsText, 1200 - newsOffset, 410);
+  ctx.fillText(fullNewsText, 1200 - newsOffset, 490);
   ctx.restore();
 }
 
@@ -521,15 +594,15 @@ animate();
 </html>
 """
 
-components.html(pixel_floor_html, height=460, scrolling=False)
+components.html(pixel_floor_html, height=520, scrolling=False)
 
 st.markdown("---")
 
-# 9. Main Dashboard Layout
-col_left, col_right = st.columns([1, 1], gap="medium")
+# 9. Main Dashboard & Expanded Live Terminal
+col_left, col_right = st.columns([5, 6], gap="large")
 
 with col_left:
-    st.subheader(f"📊 {st.session_state.current_ticker} Price Chart")
+    st.subheader(f"📊 {st.session_state.current_ticker} Market Analytics")
     t1, t2, t3, t4 = st.columns(4)
     if t1.button("1D", use_container_width=True): st.session_state.chart_timeframe = "1d"; st.rerun()
     if t2.button("5D", use_container_width=True): st.session_state.chart_timeframe = "5d"; st.rerun()
@@ -542,18 +615,18 @@ with col_left:
             increasing_line_color='#2ecc71', decreasing_line_color='#e74c3c'
         )])
         fig.update_layout(
-            margin=dict(l=10, r=10, t=10, b=10), height=340, xaxis_rangeslider_visible=False,
-            paper_bgcolor='#0e1117', plot_bgcolor='#0e1117',
-            xaxis=dict(gridcolor='#1e222a', tickfont=dict(color='#85929e')),
-            yaxis=dict(gridcolor='#1e222a', tickfont=dict(color='#85929e'))
+            margin=dict(l=10, r=10, t=10, b=10), height=380, xaxis_rangeslider_visible=False,
+            paper_bgcolor='#0b0e14', plot_bgcolor='#0b0e14',
+            xaxis=dict(gridcolor='#1e2433', tickfont=dict(color='#85929e')),
+            yaxis=dict(gridcolor='#1e2433', tickfont=dict(color='#85929e'))
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("No price data found.")
 
     if st.button("🚀 Dispatch Strategy Sprint", type="primary", use_container_width=True):
-        with st.spinner("🏛️ Evaluating orders..."):
-            sprint_prompt = f"Run trade assessment for portfolio allocation of ${capital * (max_alloc_pct/100)}."
+        with st.spinner("🏛️ Multi-agent desk evaluating strategy parameters..."):
+            sprint_prompt = f"Run institutional trade assessment for portfolio allocation of ${capital * (max_alloc_pct/100)}."
             assessment = query_agent_llm(sprint_prompt, indicators)
             score = 50 + (20 if indicators['trend'] == "BULLISH" else -20)
             score = max(0, min(100, score))
@@ -564,24 +637,40 @@ with col_left:
             }
             st.rerun()
 
-with col_right:
-    st.subheader("📋 Strategy Execution Board")
     if st.session_state.sprint_results:
+        st.markdown("##### 📋 CIO Strategy Dispatch Results")
         res = st.session_state.sprint_results
         sc1, sc2 = st.columns(2)
         sc1.metric("CIO Signal", res['signal'])
         sc2.metric("Confidence Score", f"{res['score']}/100")
         st.info(res['summary'])
-    else:
-        st.info("🔴 Desk idle.")
 
-    st.markdown("##### 💬 Live Desk Q&A Terminal")
-    chat_box = st.container(height=380)
+with col_right:
+    st.subheader("💬 Live Desk Q&A Terminal")
+    st.caption("Direct telemetry line to Quant, Risk, CIO, and Execution agents")
+
+    # Quick Execution Prompt Chips
+    q1, q2, q3 = st.columns(3)
+    if q1.button("⚡ Volatility Check", use_container_width=True):
+        st.session_state.quick_prompt = "Evaluate current ATR volatility and risk bounds for this asset."
+    if q2.button("🛡️ VaR Analysis", use_container_width=True):
+        st.session_state.quick_prompt = "Calculate potential drawdown risk under extreme tail-risk scenarios."
+    if q3.button("📈 Momentum Signals", use_container_width=True):
+        st.session_state.quick_prompt = "Provide momentum trend analysis based on RSI and Moving Average crossovers."
+
+    # Expanded 520px Terminal Container
+    chat_box = st.container(height=520)
     with chat_box:
         for msg in st.session_state.chat_history:
             st.chat_message(msg["role"]).write(sanitize_financial_text(msg["content"]))
 
-    if user_prompt := st.chat_input("Ask desk agents a question..."):
+    # Input execution logic
+    user_prompt = st.chat_input("Submit query to desk agents...")
+    if st.session_state.quick_prompt:
+        user_prompt = st.session_state.quick_prompt
+        st.session_state.quick_prompt = None
+
+    if user_prompt:
         st.session_state.chat_history.append({"role": "user", "content": user_prompt})
         reply = query_agent_llm(user_prompt, indicators)
         st.session_state.chat_history.append({"role": "assistant", "content": reply})
