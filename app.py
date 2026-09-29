@@ -12,7 +12,7 @@ try:
 except ImportError:
     HAS_GENAI = False
 
-# 1. Page Configuration & Layout
+# 1. Page Configuration
 st.set_page_config(page_title="JC Trading House", page_icon="🏛️", layout="wide")
 
 st.markdown("""
@@ -25,12 +25,23 @@ st.markdown("""
 st.title("🏛️ JC TRADING HOUSE")
 st.caption("Institutional multi-agent trading floor powered by live telemetry & LLM market intelligence.")
 
-# 2. API Setup & Session State
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or st.sidebar.text_input("Gemini API Key (Optional for AI Agents)", type="password")
+# 2. Safe Secret & API Key Retrieval
+api_key_from_secrets = ""
+try:
+    if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
+        api_key_from_secrets = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    pass
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or api_key_from_secrets
+
+if not GEMINI_API_KEY:
+    GEMINI_API_KEY = st.sidebar.text_input("Gemini API Key (Optional)", type="password")
 
 if not HAS_GENAI:
-    st.sidebar.warning("`google-genai` package not detected locally. Running in technical heuristic mode. Install via `pip install google-genai` for live AI agent synthesis.")
+    st.sidebar.warning("`google-genai` package not installed locally. Running in technical heuristic mode.")
 
+# 3. Session State
 if "watchlist" not in st.session_state:
     st.session_state.watchlist = ["NVDA", "TSLA", "BTC-USD", "ETH-USD", "S68.SG", "AAPL", "PLTR"]
 
@@ -45,10 +56,10 @@ if "sprint_results" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "🏛️ **JC Trading House Desk**: Operational. Enter an API key in the sidebar for live AI reasoning or use built-in technical indicators."}
+        {"role": "assistant", "content": "🏛️ **JC Trading House Desk**: Operational. Select an asset and execute a strategy sprint or query desk agents."}
     ]
 
-# 3. Data & Indicator Engines
+# 4. Data & Technical Engines
 @st.cache_data(ttl=60)
 def fetch_asset_data(ticker_symbol: str, timeframe: str) -> pd.DataFrame:
     interval_map = {"1d": "5m", "5d": "15m", "1mo": "1d", "6mo": "1d"}
@@ -92,15 +103,15 @@ def compute_indicators(df: pd.DataFrame) -> dict:
 
 def query_agent_llm(prompt: str, context: dict) -> str:
     if not HAS_GENAI or not GEMINI_API_KEY:
-        return f"📊 **System (Rule-Based Heuristic)**: Current price for `{context['ticker']}` is `${context['price']}` | RSI: `{context['rsi']}` | Trend: `{context['trend']}`. Install `google-genai` and add a Gemini API Key to enable multi-agent LLM analysis."
+        return f"📊 **System (Heuristic)**: Current price for `{context['ticker']}` is `${context['price']}` | RSI: `{context['rsi']}` | Trend: `{context['trend']}`. Provide a Gemini API Key to activate multi-agent LLM reasoning."
 
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
         system_instruction = (
             "You are a multi-agent quantitative trading desk consisting of: "
-            "1. Alex (Quant Agent - focuses on RSI, MACD, trends) "
-            "2. Sarah (Risk Agent - focuses on ATR, capital preservation, position sizing) "
-            "3. Marcus (CIO Agent - synthesizes final decisions). "
+            "1. Alex (Quant Agent - RSI, MACD, technical momentum) "
+            "2. Sarah (Risk Agent - ATR, capital preservation, position bounds) "
+            "3. Marcus (CIO Agent - final decision synthesis). "
             "Respond directly as these agents with concise, professional institutional analysis."
         )
         
@@ -118,27 +129,142 @@ def query_agent_llm(prompt: str, context: dict) -> str:
     except Exception as e:
         return f"⚠️ **AI Agent Desk Error**: {str(e)}"
 
-# 4. Office Canvas Diagnostics
-st.subheader("🏢 Desk Telemetry & Server Bay")
+# 5. Animated HTML5 Pixel Trading Floor Component
+st.subheader("🏢 Desk Telemetry & Animated Server Bay")
 
-office_canvas_html = r"""
-<canvas id='officeCanvas' width='880' height='260' style='border:2px solid #3a3f4d; border-radius:8px; background-color:#14161d;'></canvas>
+office_canvas_html = """
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; padding: 0; background-color: #0e1117; overflow: hidden; font-family: monospace; }
+  canvas { display: block; margin: 0 auto; border: 1px solid #2d3139; border-radius: 8px; background: #141722; }
+</style>
+</head>
+<body>
+<canvas id="stage" width="850" height="240"></canvas>
 <script>
-const canvas = document.getElementById('officeCanvas');
+const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
-function drawFloor() {
-    ctx.fillStyle = '#14161d'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#2ecc71'; ctx.font = 'bold 12px monospace';
-    ctx.fillText("JC TRADING HOUSE — LIVE TELEMETRY NODE", 20, 30);
-    ctx.fillStyle = '#85929e'; ctx.font = '11px monospace';
-    ctx.fillText("Status: Operational | Feeds: Active | Latency: 1.2ms", 20, 50);
-}
-drawFloor();
-</script>
-"""
-st.components.v1.html(office_canvas_html, height=270)
+let frame = 0;
 
-# 5. Middle Section: Price Chart & Strategy Intelligence
+const desks = [
+  { name: 'ALEX (QUANT)', x: 140, y: 120, color: '#2ecc71' },
+  { name: 'MARCUS (CIO)', x: 425, y: 100, color: '#f39c12' },
+  { name: 'SARAH (RISK)', x: 710, y: 120, color: '#e74c3c' }
+];
+
+function drawGrid() {
+  ctx.strokeStyle = '#1d2230';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < canvas.width; x += 30) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += 30) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+}
+
+function drawServerRacks() {
+  ctx.fillStyle = '#1c202c';
+  ctx.fillRect(15, 50, 45, 150);
+  ctx.strokeStyle = '#3a4154';
+  ctx.strokeRect(15, 50, 45, 150);
+  
+  for(let i=0; i<7; i++) {
+    let ledColor = ((frame + i*15) % 50 < 25) ? '#2ecc71' : '#3498db';
+    if (i === 5 && frame % 30 < 8) ledColor = '#e74c3c';
+    ctx.fillStyle = ledColor;
+    ctx.fillRect(22, 60 + i*18, 6, 6);
+    ctx.fillRect(34, 60 + i*18, 18, 4);
+  }
+
+  let packetX = (frame * 3) % (canvas.width - 70) + 65;
+  ctx.fillStyle = '#00f0ff';
+  ctx.fillRect(packetX, 40, 10, 2);
+}
+
+function drawDesk(d) {
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(d.x - 45, d.y + 35, 90, 12);
+
+  ctx.fillStyle = '#252a38';
+  ctx.fillRect(d.x - 40, d.y, 80, 35);
+  ctx.strokeStyle = '#3d455b';
+  ctx.strokeRect(d.x - 40, d.y, 80, 35);
+
+  ctx.fillStyle = '#11131a';
+  ctx.fillRect(d.x - 25, d.y - 25, 50, 22);
+  ctx.strokeStyle = d.color;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(d.x - 25, d.y - 25, 50, 22);
+
+  ctx.fillStyle = d.color;
+  ctx.fillRect(d.x - 20, d.y - 12, 8, 4 + Math.sin(frame*0.1)*3);
+  ctx.fillRect(d.x - 8, d.y - 18, 12, 6 + Math.cos(frame*0.1)*4);
+  ctx.fillRect(d.x + 8, d.y - 15, 10, 5 + Math.sin(frame*0.15)*3);
+
+  let bob = Math.sin(frame * 0.12) * 2;
+  
+  ctx.fillStyle = '#f1c40f';
+  ctx.fillRect(d.x - 6, d.y - 42 + bob, 12, 12);
+  
+  ctx.fillStyle = d.color;
+  ctx.fillRect(d.x - 10, d.y - 30 + bob, 20, 15);
+
+  ctx.fillStyle = 'rgba(20, 23, 34, 0.9)';
+  ctx.fillRect(d.x - 55, d.y - 64, 110, 16);
+  ctx.strokeStyle = '#3a4154';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(d.x - 55, d.y - 64, 110, 16);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(d.name, d.x, d.y - 52);
+}
+
+function drawHUD() {
+  ctx.fillStyle = 'rgba(18, 21, 30, 0.95)';
+  ctx.fillRect(0, 0, canvas.width, 32);
+  ctx.strokeStyle = '#2d3345';
+  ctx.beginPath(); ctx.moveTo(0, 32); ctx.lineTo(canvas.width, 32); ctx.stroke();
+
+  ctx.fillStyle = '#2ecc71';
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText("● JC TRADING DESK FLOOR", 15, 20);
+
+  ctx.fillStyle = '#85929e';
+  ctx.font = '10px monospace';
+  ctx.fillText("AGENTS: 3 ACTIVE | ENGINE: GEMINI LLM | TELEMETRY: SYNCED", 220, 20);
+
+  let alpha = (Math.sin(frame * 0.1) + 1) / 2;
+  ctx.fillStyle = `rgba(46, 204, 113, ${alpha})`;
+  ctx.beginPath(); ctx.arc(780, 18, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '9px monospace';
+  ctx.fillText("LIVE", 790, 21);
+}
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawGrid();
+  drawServerRacks();
+  desks.forEach(drawDesk);
+  drawHUD();
+  frame++;
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>
+"""
+
+st.components.v1.html(office_canvas_html, height=255, scrolling=False)
+
+# 6. Middle Section: Price Chart & Strategy Intelligence
 col_chart, col_board = st.columns([1.1, 0.9])
 
 with col_chart:
@@ -196,7 +322,7 @@ with col_board:
 
 st.markdown("---")
 
-# 6. Watchlist & Controls
+# 7. Controls & Execution
 col_watch, col_risk = st.columns([1.1, 0.9])
 
 with col_watch:
