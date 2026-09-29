@@ -4,3 +4,9 @@ yfinance>=0.2.30
 plotly>=5.18.0
 google-genai>=0.1.0
 requests>=2.31.0
+
+streamlit
+pandas
+yfinance
+plotly
+google-genai
