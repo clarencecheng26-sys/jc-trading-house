@@ -32,7 +32,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Helper function: Cleans raw LaTeX markup and escapes currency symbols to prevent rendering errors
+# Helper function: Cleans raw LaTeX markup and escapes currency symbols
 def sanitize_financial_text(text: str) -> str:
     if not text:
         return ""
@@ -186,163 +186,191 @@ kpi3.metric("RSI (14)", indicators['rsi'])
 kpi4.metric("20-SMA Trend", indicators['trend'])
 kpi5.metric("ATR Volatility", f"${indicators['atr']}")
 
-# 7. Animated HTML5 Pixel Floor
+# 7. Animated Responsive HTML5 Pixel Floor (Aligned & High Readability)
 pixel_floor_html = """
 <!DOCTYPE html>
 <html>
 <head>
 <style>
-  body { margin: 0; padding: 0; background-color: #0e1117; overflow: hidden; font-family: monospace; }
-  .container { width: 100%; display: flex; justify-content: center; align-items: center; }
-  canvas { display: block; width: 100%; max-width: 900px; height: auto; border: 1px solid #2d3139; border-radius: 8px; background: #12151f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 0; background-color: #0e1117; overflow: hidden; font-family: 'Courier New', monospace; }
+  .canvas-wrapper { width: 100%; display: block; padding: 0; margin: 0; }
+  canvas { display: block; width: 100%; height: 215px; border: 1px solid #2d3139; border-radius: 8px; background: #12151f; }
 </style>
 </head>
 <body>
-<div class="container">
-  <canvas id="floor" width="900" height="200"></canvas>
+<div class="canvas-wrapper">
+  <canvas id="floor" width="1300" height="215"></canvas>
 </div>
 <script>
 const canvas = document.getElementById('floor');
 const ctx = canvas.getContext('2d');
 let frame = 0;
 
+// Re-balanced spacing across 1300px canvas width
 const desks = [
-  { name: 'ALEX (QUANT)', x: 220, y: 100, color: '#2ecc71' },
-  { name: 'MARCUS (CIO)', x: 410, y: 88, color: '#f39c12' },
-  { name: 'SARAH (RISK)', x: 600, y: 100, color: '#e74c3c' }
+  { name: 'ALEX (QUANT)', x: 320, y: 108, color: '#2ecc71' },
+  { name: 'MARCUS (CIO)', x: 610, y: 96, color: '#f39c12' },
+  { name: 'SARAH (RISK)', x: 900, y: 108, color: '#e74c3c' }
 ];
 
 function drawGrid() {
   ctx.strokeStyle = '#1a1e2b';
   ctx.lineWidth = 1;
-  for (let x = 0; x < canvas.width; x += 30) {
+  for (let x = 0; x < canvas.width; x += 35) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
   }
-  for (let y = 0; y < canvas.height; y += 30) {
+  for (let y = 0; y < canvas.height; y += 35) {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
   }
 }
 
 function drawServerBay() {
+  // Server Cabinet
   ctx.fillStyle = '#1c202c';
-  ctx.fillRect(15, 45, 50, 140);
+  ctx.fillRect(25, 45, 75, 150);
   ctx.strokeStyle = '#3a4154';
-  ctx.strokeRect(15, 45, 50, 140);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(25, 45, 75, 150);
 
+  // Blinking LEDs
   for(let i = 0; i < 6; i++) {
     let ledColor = ((frame + i * 12) % 40 < 20) ? '#2ecc71' : '#3498db';
     if (i === 4 && frame % 25 < 6) ledColor = '#e74c3c';
     ctx.fillStyle = ledColor;
-    ctx.fillRect(22, 55 + i * 20, 6, 6);
-    ctx.fillRect(34, 55 + i * 20, 24, 4);
+    ctx.fillRect(35, 58 + i * 22, 10, 8);
+    ctx.fillRect(52, 58 + i * 22, 38, 6);
   }
 
-  let packetX = (frame * 3) % 700 + 70;
+  // Network Packet Pulse
+  let packetX = (frame * 4) % 1000 + 110;
   ctx.fillStyle = '#00f0ff';
-  ctx.fillRect(packetX, 35, 8, 2);
+  ctx.fillRect(packetX, 38, 12, 3);
+
+  // Label Box
+  ctx.fillStyle = '#12151f';
+  ctx.fillRect(20, 198, 85, 14);
+  ctx.fillStyle = '#00f0ff';
+  ctx.font = 'bold 10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText("SERVERS", 62, 209);
 }
 
 function drawDesk(d) {
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(d.x - 40, d.y + 32, 80, 10);
+  // Floor Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(d.x - 55, d.y + 42, 110, 12);
 
   // Desk Surface
   ctx.fillStyle = '#252a38';
-  ctx.fillRect(d.x - 35, d.y, 70, 32);
+  ctx.fillRect(d.x - 50, d.y, 100, 42);
   ctx.strokeStyle = '#3d455b';
-  ctx.strokeRect(d.x - 35, d.y, 70, 32);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(d.x - 50, d.y, 100, 42);
 
-  // Monitor Display
+  // Dual Monitors
   ctx.fillStyle = '#11131a';
-  ctx.fillRect(d.x - 22, d.y - 24, 44, 20);
+  ctx.fillRect(d.x - 38, d.y - 32, 76, 28);
+  ctx.strokeStyle = d.color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(d.x - 38, d.y - 32, 76, 28);
+
+  // Screen Data Lines
+  ctx.fillStyle = d.color;
+  ctx.fillRect(d.x - 30, d.y - 24, 18, 4 + Math.sin(frame * 0.1) * 2);
+  ctx.fillRect(d.x - 8, d.y - 20, 20, 5 + Math.cos(frame * 0.1) * 2);
+  ctx.fillRect(d.x + 16, d.y - 25, 14, 4 + Math.sin(frame * 0.15) * 2);
+
+  // Staff Head & Body
+  let bob = Math.sin(frame * 0.12) * 2.5;
+  ctx.fillStyle = '#f1c40f';
+  ctx.fillRect(d.x - 7, d.y - 50 + bob, 14, 14);
+  ctx.fillStyle = d.color;
+  ctx.fillRect(d.x - 12, d.y - 36 + bob, 24, 16);
+
+  // Large Readable Name Tag
+  ctx.fillStyle = '#161a23';
+  ctx.fillRect(d.x - 70, d.y - 75, 140, 20);
   ctx.strokeStyle = d.color;
   ctx.lineWidth = 1.5;
-  ctx.strokeRect(d.x - 22, d.y - 24, 44, 20);
-
-  // Animated Screen Data
-  ctx.fillStyle = d.color;
-  ctx.fillRect(d.x - 18, d.y - 18, 10, 3 + Math.sin(frame * 0.1) * 2);
-  ctx.fillRect(d.x - 6, d.y - 14, 12, 4 + Math.cos(frame * 0.1) * 2);
-  ctx.fillRect(d.x + 8, d.y - 19, 8, 3 + Math.sin(frame * 0.15) * 2);
-
-  // Staff Figure
-  let bob = Math.sin(frame * 0.12) * 2;
-  ctx.fillStyle = '#f1c40f';
-  ctx.fillRect(d.x - 5, d.y - 38 + bob, 10, 10);
-  ctx.fillStyle = d.color;
-  ctx.fillRect(d.x - 8, d.y - 28 + bob, 16, 12);
-
-  // Label Box
-  ctx.fillStyle = 'rgba(18, 21, 30, 0.9)';
-  ctx.fillRect(d.x - 50, d.y - 58, 100, 14);
-  ctx.strokeStyle = '#3a4154';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(d.x - 50, d.y - 58, 100, 14);
+  ctx.strokeRect(d.x - 70, d.y - 75, 140, 20);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 8.5px monospace';
+  ctx.font = 'bold 12px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(d.name, d.x, d.y - 48);
+  ctx.fillText(d.name, d.x, d.y - 61);
 }
 
 function drawPantry() {
+  // Divider Line
   ctx.strokeStyle = '#2d3345';
-  ctx.beginPath(); ctx.moveTo(730, 40); ctx.lineTo(730, 185); ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(1050, 35); ctx.lineTo(1050, 200); ctx.stroke();
 
+  // Break Room Table
   ctx.fillStyle = '#222736';
-  ctx.fillRect(750, 100, 125, 32);
+  ctx.fillRect(1075, 118, 200, 42);
   ctx.strokeStyle = '#3a4154';
-  ctx.strokeRect(750, 100, 125, 32);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(1075, 118, 200, 42);
 
+  // Espresso Machine
   ctx.fillStyle = '#e74c3c';
-  ctx.fillRect(755, 68, 28, 32);
+  ctx.fillRect(1085, 76, 40, 42);
   ctx.fillStyle = '#11131a';
-  ctx.fillRect(760, 80, 18, 14);
+  ctx.fillRect(1092, 92, 26, 18);
 
-  let steamY = 62 - (frame % 30) * 0.5;
+  // Steam Animation
+  let steamY = 70 - (frame % 30) * 0.6;
   let steamAlpha = 1 - ((frame % 30) / 30);
   ctx.fillStyle = `rgba(255, 255, 255, ${steamAlpha})`;
-  ctx.beginPath(); ctx.arc(768, steamY, 2.5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(772, steamY - 4, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1105, steamY, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1112, steamY - 6, 2.5, 0, Math.PI * 2); ctx.fill();
 
+  // Water Cooler
   ctx.fillStyle = '#3498db';
-  ctx.beginPath(); ctx.arc(810, 72, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1160, 80, 13, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ecf0f1';
-  ctx.fillRect(804, 80, 12, 20);
+  ctx.fillRect(1150, 93, 20, 25);
+
+  // Staff Figure in Pantry
+  let pantryBob = Math.cos(frame * 0.1) * 2;
+  ctx.fillStyle = '#e67e22';
+  ctx.fillRect(1225, 74 + pantryBob, 14, 14);
+  ctx.fillStyle = '#9b59b6';
+  ctx.fillRect(1220, 88 + pantryBob, 24, 30);
+
+  // Prominent Header Sign
+  ctx.fillStyle = '#161a23';
+  ctx.fillRect(1075, 42, 200, 22);
+  ctx.strokeStyle = '#f39c12';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(1075, 42, 200, 22);
 
   ctx.fillStyle = '#f39c12';
-  ctx.fillRect(790, 93, 6, 7);
-
-  let pantryBob = Math.cos(frame * 0.1) * 1.5;
-  ctx.fillStyle = '#e67e22';
-  ctx.fillRect(840, 68 + pantryBob, 10, 10);
-  ctx.fillStyle = '#9b59b6';
-  ctx.fillRect(837, 78 + pantryBob, 16, 22);
-
-  ctx.fillStyle = '#85929e';
-  ctx.font = 'bold 9px monospace';
+  ctx.font = 'bold 11px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText("☕ BREAK ROOM & PANTRY", 812, 52);
+  ctx.fillText("☕ BREAK ROOM & PANTRY", 1175, 57);
 }
 
 function drawHUD() {
-  ctx.fillStyle = 'rgba(18, 21, 30, 0.95)';
-  ctx.fillRect(0, 0, canvas.width, 28);
+  ctx.fillStyle = '#161a23';
+  ctx.fillRect(0, 0, canvas.width, 32);
   ctx.strokeStyle = '#2d3345';
-  ctx.beginPath(); ctx.moveTo(0, 28); ctx.lineTo(canvas.width, 28); ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, 32); ctx.lineTo(canvas.width, 32); ctx.stroke();
 
   ctx.fillStyle = '#2ecc71';
-  ctx.font = 'bold 10px monospace';
+  ctx.font = 'bold 12px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText("● JC TRADING DESK FLOOR & PANTRY TELEMETRY", 12, 18);
+  ctx.fillText("● JC TRADING HOUSE — FLOOR & PANTRY TELEMETRY", 15, 21);
 
   let alpha = (Math.sin(frame * 0.1) + 1) / 2;
   ctx.fillStyle = `rgba(46, 204, 113, ${alpha})`;
-  ctx.beginPath(); ctx.arc(850, 15, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1240, 18, 5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ffffff';
-  ctx.font = '9px monospace';
-  ctx.fillText("LIVE", 860, 18);
+  ctx.font = 'bold 11px monospace';
+  ctx.fillText("LIVE", 1252, 21);
 }
 
 function animate() {
@@ -361,11 +389,11 @@ animate();
 </html>
 """
 
-components.html(pixel_floor_html, height=215, scrolling=False)
+components.html(pixel_floor_html, height=225, scrolling=False)
 
 st.markdown("---")
 
-# 8. Main Dashboard Layout
+# 8. Main Dashboard Layout (Balanced 2-Column Grid)
 col_left, col_right = st.columns([1, 1], gap="medium")
 
 with col_left:
