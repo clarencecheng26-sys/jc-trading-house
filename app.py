@@ -1,6 +1,6 @@
 import os
 import re
-import streamlit as st
+import Streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 import yfinance as yf
@@ -108,16 +108,15 @@ def compute_indicators(df: pd.DataFrame) -> dict:
         "atr": round(atr, 2), "trend": trend, "sma20": round(sma20, 2)
     }
 
-# 6. Dynamic Model Discovery LLM Engine (Fixes 404 for gen-lang-client Keys)
+# 6. Dynamic Model Discovery LLM Engine
 def query_agent_llm(prompt: str, context: dict) -> str:
     if not GEMINI_API_KEY:
-        return f"⚠️ **System**: Missing Gemini API Key. Cannot process."
+        return "⚠️ **System**: Missing Gemini API Key. Cannot process."
 
     system_instruction = "You are an institutional multi-agent trading desk. Keep answers concise, direct, and actionable."
     full_prompt = f"Market Context for {context['ticker']}: {context}\n\nUser Question: {prompt}"
     last_error = ""
 
-    # Attempt 1: New Google GenAI SDK with Dynamic Model Resolution
     if HAS_GENAI:
         try:
             client = genai.Client(api_key=GEMINI_API_KEY)
@@ -146,7 +145,6 @@ def query_agent_llm(prompt: str, context: dict) -> str:
                     continue
         except Exception as e: last_error = str(e)
 
-    # Attempt 2: Legacy google.generativeai SDK
     try:
         import google.generativeai as legacy_genai
         legacy_genai.configure(api_key=GEMINI_API_KEY)
@@ -174,7 +172,7 @@ def query_agent_llm(prompt: str, context: dict) -> str:
 
     return f"⚠️ **AI Agent Desk Error**: Query failed. Details: `{last_error}`"
 
-# 7. Main UI Header & Watchlist Manager
+# 7. Main UI Header
 st.title("🏛️ JC TRADING HOUSE")
 st.caption("Institutional Multi-Agent Trading Desk & Real-time Market Analytics")
 
@@ -189,7 +187,7 @@ with col_sel:
         st.session_state.current_ticker = selected_symbol
         st.rerun()
 with col_add:
-    new_asset = st.text_input("Add Ticker", placeholder="e.g., MSFT, GC=F", label_visibility="collapsed").strip().upper()
+    new_asset = st.text_input("Add Ticker", placeholder="e.g., MSFT", label_visibility="collapsed").strip().upper()
     if st.button("➕ Add Asset", use_container_width=True) and new_asset:
         if new_asset not in st.session_state.watchlist:
             st.session_state.watchlist.append(new_asset)
@@ -217,7 +215,7 @@ kpi3.metric("RSI (14)", indicators['rsi'])
 kpi4.metric("20-SMA Trend", indicators['trend'])
 kpi5.metric("ATR Volatility", f"${indicators['atr']}")
 
-# 8. High-Detail Animated Pixel Floor Engine (HD Canvas)
+# 8. Animated Pixel Floor Engine with Ticker & News Stream
 pixel_floor_html = """
 <!DOCTYPE html>
 <html>
@@ -238,6 +236,27 @@ const canvas = document.getElementById('tradingFloor');
 const ctx = canvas.getContext('2d');
 let frame = 0;
 
+// Stock Ticker & News State
+let tickerOffset = 0;
+let newsOffset = 0;
+
+const stockTickerItems = [
+  { symbol: "BTC-USD", price: "92,450.10", change: "+2.4%", up: true },
+  { symbol: "NVDA", price: "138.20", change: "+1.8%", up: true },
+  { symbol: "TSLA", price: "248.50", change: "-0.9%", up: false },
+  { symbol: "ETH-USD", price: "3,450.80", change: "+3.1%", up: true },
+  { symbol: "S68.SG", price: "10.85", change: "+0.4%", up: true },
+  { symbol: "AAPL", price: "228.10", change: "-0.3%", up: false }
+];
+
+const newsHeadlines = [
+  "⚡ [MARKET BREAKING]: US FED PREPARES LIQUIDITY INJECTION",
+  "📈 [QUANT LAB]: HIGH-FREQUENCY MOMENTUM SIGNAL DETECTED ON NVDA & BTC",
+  "🛡️ [RISK MONITOR]: PORTFOLIO VAR MAINTAINED AT 95% CONFIDENCE",
+  "☕ [TRADING FLOOR]: MARCUS (CIO) CALLS STRATEGY SPRINT FOR Q4 ASSET ALLOCATION",
+  "🌐 [TELEMETRY]: SERVER ARRAY RUNNING AT 99.98% UPTIME"
+];
+
 class StaffMember {
   constructor(name, title, deskX, deskY, shirtColor, hairColor, roleBadge) {
     this.name = name;
@@ -250,7 +269,7 @@ class StaffMember {
     this.hairColor = hairColor;
     this.roleBadge = roleBadge;
     this.state = 'DESK';
-    this.timer = Math.floor(Math.random() * 180) + 120;
+    this.timer = Math.floor(Math.random() * 120) + 60;
     this.targetX = deskX; 
     this.targetY = deskY;
     this.destName = '';
@@ -260,11 +279,11 @@ class StaffMember {
     if (this.state === 'DESK') {
       this.timer--;
       if (this.timer <= 0) {
-        if (Math.random() < 0.55) {
+        if (Math.random() < 0.5) {
           this.targetX = 1080 + Math.random() * 40; 
           this.destName = 'PANTRY';
         } else {
-          this.targetX = 110 + Math.random() * 30; 
+          this.targetX = 100 + Math.random() * 40; 
           this.destName = 'SERVERS';
         }
         this.targetY = 240; 
@@ -276,10 +295,10 @@ class StaffMember {
       if (dist < 4) {
         this.x = this.targetX; this.y = this.targetY;
         this.state = 'AT_DEST'; 
-        this.timer = Math.floor(Math.random() * 160) + 100;
+        this.timer = Math.floor(Math.random() * 140) + 80;
       } else {
-        this.x += (dx / dist) * 1.8; 
-        this.y += (dy / dist) * 1.8;
+        this.x += (dx / dist) * 2.0; 
+        this.y += (dy / dist) * 2.0;
       }
     } else if (this.state === 'AT_DEST') {
       this.timer--;
@@ -294,21 +313,20 @@ class StaffMember {
       if (dist < 4) {
         this.x = this.deskX; this.y = this.deskY;
         this.state = 'DESK'; 
-        this.timer = Math.floor(Math.random() * 240) + 160;
+        this.timer = Math.floor(Math.random() * 180) + 100;
       } else {
-        this.x += (dx / dist) * 1.8; 
-        this.y += (dy / dist) * 1.8;
+        this.x += (dx / dist) * 2.0; 
+        this.y += (dy / dist) * 2.0;
       }
     }
   }
 
   draw() {
     const isWalking = (this.state === 'WALKING_OUT' || this.state === 'WALKING_BACK');
-    const bob = (this.state === 'DESK') ? Math.sin(frame * 0.1) * 2 : 0;
-    const legOffset = isWalking ? Math.sin(frame * 0.22) * 6 : 0;
+    const bob = (this.state === 'DESK') ? Math.sin(frame * 0.12) * 2 : 0;
+    const legOffset = isWalking ? Math.sin(frame * 0.25) * 6 : 0;
 
-    // --- SPRITE RENDERING (32x45 px scale) ---
-    // Hair / Head
+    // Head / Hair
     ctx.fillStyle = this.hairColor;
     ctx.fillRect(this.x - 10, this.y - 42 + bob, 20, 14);
     // Face
@@ -318,14 +336,13 @@ class StaffMember {
     ctx.fillStyle = '#111';
     ctx.fillRect(this.x - 5, this.y - 28 + bob, 3, 3);
     ctx.fillRect(this.x + 2, this.y - 28 + bob, 3, 3);
-    // Shirt / Suit Body
+    // Body / Suit
     ctx.fillStyle = this.shirtColor;
     ctx.fillRect(this.x - 12, this.y - 20 + bob, 24, 18);
-    // Collar / Tie Accent
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(this.x - 3,ヴェル = this.y - 20 + bob, 6, 8);
+    ctx.fillRect(this.x - 3, this.y - 20 + bob, 6, 8);
 
-    // Pants & Legs
+    // Legs
     ctx.fillStyle = '#1e2530';
     if (isWalking) {
       ctx.fillRect(this.x - 9, this.y - 2, 7, 16 + legOffset);
@@ -334,7 +351,7 @@ class StaffMember {
       ctx.fillRect(this.x - 9, this.y - 2 + bob, 18, 16);
     }
 
-    // --- FLOATING HUD NAMEPLATE ---
+    // Floating Badge
     let actionTag = "📊 DESK";
     if (this.state === 'AT_DEST') actionTag = (this.destName === 'PANTRY') ? "☕ PANTRY" : "⚙️ SERVERS";
     else if (isWalking) actionTag = "🚶 MOVING";
@@ -343,14 +360,12 @@ class StaffMember {
     ctx.font = 'bold 12px monospace';
     const textWidth = ctx.measureText(labelText).width + 16;
 
-    // Badge Background
-    ctx.fillStyle = 'rgba(15, 20, 30, 0.92)';
+    ctx.fillStyle = 'rgba(15, 20, 30, 0.95)';
     ctx.fillRect(this.x - textWidth/2, this.y - 68 + bob, textWidth, 22);
     ctx.strokeStyle = this.shirtColor;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(this.x - textWidth/2, this.y - 68 + bob, textWidth, 22);
 
-    // Badge Text
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.fillText(labelText, this.x, this.y - 53 + bob);
@@ -364,9 +379,9 @@ const staffMembers = [
 ];
 
 function drawEnvironment() {
-  // Tiled Slate Floor
+  // Slate Floor Tiles
   for (let x = 0; x < canvas.width; x += 40) {
-    for (let y = 40; y < canvas.height; y += 40) {
+    for (let y = 40; y < canvas.height - 30; y += 40) {
       ctx.fillStyle = ((x + y) % 80 === 0) ? '#111520' : '#141926';
       ctx.fillRect(x, y, 40, 40);
       ctx.strokeStyle = '#1a2030';
@@ -375,7 +390,7 @@ function drawEnvironment() {
     }
   }
 
-  // Top Telemetry Header Bar
+  // Top Telemetry Header
   ctx.fillStyle = '#161b26';
   ctx.fillRect(0, 0, canvas.width, 40);
   ctx.strokeStyle = '#2d3548';
@@ -383,51 +398,64 @@ function drawEnvironment() {
   ctx.beginPath(); ctx.moveTo(0, 40); ctx.lineTo(canvas.width, 40); ctx.stroke();
 
   ctx.fillStyle = '#2ecc71'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'left';
-  ctx.fillText("● JC TRADING HOUSE — MAIN TRADING FLOOR & TELEMETRY DESK", 20, 25);
+  ctx.fillText("● JC TRADING HOUSE — MAIN TRADING FLOOR & TELEMETRY DESK", 15, 25);
+
+  // Moving Live Stock Ticker Stream
+  tickerOffset = (tickerOffset + 1.2) % 1200;
+  ctx.fillStyle = '#111522'; ctx.fillRect(520, 6, 560, 28);
+  ctx.strokeStyle = '#323c52'; ctx.strokeRect(520, 6, 560, 28);
+  
+  ctx.save();
+  ctx.beginPath(); ctx.rect(522, 8, 556, 24); ctx.clip();
+  let tickerX = 1080 - tickerOffset;
+  ctx.font = 'bold 12px monospace'; ctx.textAlign = 'left';
+  stockTickerItems.forEach(item => {
+    ctx.fillStyle = '#00f0ff'; ctx.fillText(item.symbol, tickerX, 24);
+    ctx.fillStyle = '#ffffff'; ctx.fillText(`$${item.price}`, tickerX + 65, 24);
+    ctx.fillStyle = item.up ? '#2ecc71' : '#e74c3c'; ctx.fillText(item.change, tickerX + 135, 24);
+    tickerX += 200;
+  });
+  ctx.restore();
 
   let pulse = (Math.sin(frame * 0.1) + 1) / 2;
   ctx.fillStyle = `rgba(46, 204, 113, ${pulse})`;
-  ctx.beginPath(); ctx.arc(1130, 22, 6, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px monospace'; ctx.fillText("LIVE SYSTEM", 1145, 26);
+  ctx.beginPath(); ctx.arc(1115, 20, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px monospace'; ctx.fillText("LIVE", 1125, 24);
 
-  // --- ZONE 1: SERVER ARRAY (LEFT) ---
-  ctx.fillStyle = '#181d2a'; ctx.fillRect(20, 60, 160, 330);
-  ctx.strokeStyle = '#2a3347'; ctx.lineWidth = 2; ctx.strokeRect(20, 60, 160, 330);
+  // Server Array (Left)
+  ctx.fillStyle = '#181d2a'; ctx.fillRect(20, 55, 160, 330);
+  ctx.strokeStyle = '#2a3347'; ctx.lineWidth = 2; ctx.strokeRect(20, 55, 160, 330);
   ctx.fillStyle = '#00f0ff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
-  ctx.fillText("🖥️ SERVER ARRAY", 100, 82);
+  ctx.fillText("🖥️ SERVER ARRAY", 100, 75);
 
-  // Server Racks with Blinking LEDs
   for (let r = 0; r < 3; r++) {
-    let ry = 100 + r * 95;
+    let ry = 90 + r * 95;
     ctx.fillStyle = '#0f131d'; ctx.fillRect(35, ry, 130, 80);
     ctx.strokeStyle = '#3b4661'; ctx.strokeRect(35, ry, 130, 80);
     for (let slot = 0; slot < 4; slot++) {
       ctx.fillStyle = '#1a2233'; ctx.fillRect(42, ry + 8 + slot * 16, 116, 12);
       let ledOn = (Math.sin(frame * 0.2 + r + slot) > 0);
-      ctx.fillStyle = ledOn ? (slot % 2 === 0 ? '#2ecc71' : '#00f0ff') : '#555';
+      ctx.fillStyle = ledOn ? (slot % 2 === 0 ? '#2ecc71' : '#00f0ff') : '#444';
       ctx.fillRect(142, ry + 12 + slot * 16, 10, 4);
     }
   }
 
-  // --- ZONE 2: PANTRY & LOUNGE (RIGHT) ---
-  ctx.fillStyle = '#181d2a'; ctx.fillRect(1020, 60, 160, 330);
-  ctx.strokeStyle = '#2a3347'; ctx.lineWidth = 2; ctx.strokeRect(1020, 60, 160, 330);
+  // Pantry & Lounge (Right)
+  ctx.fillStyle = '#181d2a'; ctx.fillRect(1020, 55, 160, 330);
+  ctx.strokeStyle = '#2a3347'; ctx.lineWidth = 2; ctx.strokeRect(1020, 55, 160, 330);
   ctx.fillStyle = '#f39c12'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
-  ctx.fillText("☕ PANTRY & BREAKROOM", 1100, 82);
+  ctx.fillText("☕ PANTRY & BREAKROOM", 1100, 75);
 
-  // Espresso Machine
-  ctx.fillStyle = '#2c3e50'; ctx.fillRect(1040, 120, 120, 70);
-  ctx.fillStyle = '#e67e22'; ctx.fillRect(1055, 140, 30, 40);
-  // Steam effect
+  ctx.fillStyle = '#2c3e50'; ctx.fillRect(1040, 110, 120, 70);
+  ctx.fillStyle = '#e67e22'; ctx.fillRect(1055, 130, 30, 40);
   let steamY = (frame * 1.5) % 30;
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.beginPath(); ctx.arc(1070, 135 - steamY, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1070, 125 - steamY, 4, 0, Math.PI * 2); ctx.fill();
 
-  // Water Cooler
-  ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1135, 230, 14, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ecf0f1'; ctx.fillRect(1125, 244, 20, 40);
+  ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1135, 220, 14, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ecf0f1'; ctx.fillRect(1125, 234, 20, 40);
 
-  // --- ZONE 3: TRADING WORKSTATIONS ---
+  // Workstations
   const workstations = [
     { name: "QUANT LAB (ALEX)", x: 340, y: 230, accent: "#2ecc71" },
     { name: "CIO DESK (MARCUS)", x: 600, y: 230, accent: "#3498db" },
@@ -435,41 +463,49 @@ function drawEnvironment() {
   ];
 
   workstations.forEach(ws => {
-    // Desk Surface
     ctx.fillStyle = '#222838'; ctx.fillRect(ws.x - 85, ws.y + 10, 170, 55);
     ctx.strokeStyle = '#3d4863'; ctx.lineWidth = 2; ctx.strokeRect(ws.x - 85, ws.y + 10, 170, 55);
     
-    // Station Overhead Title Banner
     ctx.fillStyle = '#121622'; ctx.fillRect(ws.x - 85, ws.y - 95, 170, 24);
     ctx.strokeStyle = ws.accent; ctx.lineWidth = 1.5; ctx.strokeRect(ws.x - 85, ws.y - 95, 170, 24);
     ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
     ctx.fillText(ws.name, ws.x, ws.y - 79);
 
-    // Center Main Monitor (Live Candlestick Graphic)
+    // Center Monitor (Candlesticks)
     ctx.fillStyle = '#0a0d14'; ctx.fillRect(ws.x - 35, ws.y - 60, 70, 48);
     ctx.strokeStyle = ws.accent; ctx.lineWidth = 1.5; ctx.strokeRect(ws.x - 35, ws.y - 60, 70, 48);
-    // Simulated Candles
-    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x - 25, ws.y - 45, 6, 20);
-    ctx.fillStyle = '#e74c3c'; ctx.fillRect(ws.x - 12, ws.y - 50, 6, 25);
-    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x + 2, ws.y - 38, 6, 18);
-    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x + 15, ws.y - 52, 6, 30);
+    
+    let chartShift = Math.sin(frame * 0.1) * 3;
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x - 25, ws.y - 45 + chartShift, 6, 20);
+    ctx.fillStyle = '#e74c3c'; ctx.fillRect(ws.x - 12, ws.y - 50 - chartShift, 6, 25);
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x + 2, ws.y - 38 + chartShift, 6, 18);
+    ctx.fillStyle = '#2ecc71'; ctx.fillRect(ws.x + 15, ws.y - 52 - chartShift, 6, 30);
 
-    // Left Side Monitor
+    // Side Monitors
     ctx.fillStyle = '#0a0d14'; ctx.fillRect(ws.x - 78, ws.y - 52, 38, 38);
     ctx.strokeStyle = '#2d364d'; ctx.strokeRect(ws.x - 78, ws.y - 52, 38, 38);
     ctx.fillStyle = '#00f0ff'; ctx.fillRect(ws.x - 72, ws.y - 44, 26, 3);
     ctx.fillRect(ws.x - 72, ws.y - 36, 20, 3);
-    ctx.fillRect(ws.x - 72, ws.y - 28, 24, 3);
 
-    // Right Side Monitor
     ctx.fillStyle = '#0a0d14'; ctx.fillRect(ws.x + 40, ws.y - 52, 38, 38);
     ctx.strokeStyle = '#2d364d'; ctx.strokeRect(ws.x + 40, ws.y - 52, 38, 38);
     ctx.fillStyle = '#f1c40f'; ctx.fillRect(ws.x + 46, ws.y - 42, 26, 18);
 
-    // Keyboard & Ergonomic Chair Backing
     ctx.fillStyle = '#121622'; ctx.fillRect(ws.x - 22, ws.y + 16, 44, 12);
     ctx.fillStyle = ws.accent; ctx.fillRect(ws.x - 20, ws.y + 58, 40, 8);
   });
+
+  // Bottom Live News Ticker Bar
+  ctx.fillStyle = '#0a0d14'; ctx.fillRect(0, 390, canvas.width, 30);
+  ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1; ctx.strokeRect(0, 390, canvas.width, 30);
+  
+  newsOffset = (newsOffset + 1.5) % 2400;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 390, canvas.width, 30); ctx.clip();
+  ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'left';
+  let fullNewsText = newsHeadlines.join("  ---  ");
+  ctx.fillText(fullNewsText, 1200 - newsOffset, 410);
+  ctx.restore();
 }
 
 function animate() {
@@ -489,7 +525,7 @@ components.html(pixel_floor_html, height=460, scrolling=False)
 
 st.markdown("---")
 
-# 9. Main Dashboard Layout (Fixed Timeframe Buttons & Q&A)
+# 9. Main Dashboard Layout
 col_left, col_right = st.columns([1, 1], gap="medium")
 
 with col_left:
