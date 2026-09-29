@@ -1,6 +1,7 @@
 import os
 import re
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
@@ -41,7 +42,7 @@ def sanitize_financial_text(text: str) -> str:
     clean = re.sub(r'(?<!\\)\$(\d+)', r'\\$\1', clean)
     return clean
 
-# 3. Safe API Key Retrieval (Works Locally & on Streamlit Cloud)
+# 3. Safe API Key Retrieval
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 try:
     if "GEMINI_API_KEY" in st.secrets:
@@ -65,7 +66,7 @@ with st.sidebar:
     st.subheader("📌 Asset Watchlist")
     
     if "watchlist" not in st.session_state:
-        st.session_state.watchlist = ["NVDA", "TSLA", "BTC-USD", "ETH-USD", "S68.SG", "AAPL", "PLTR"]
+        st.session_state.watchlist = ["BTC-USD", "NVDA", "TSLA", "ETH-USD", "S68.SG", "AAPL", "PLTR"]
     if "current_ticker" not in st.session_state:
         st.session_state.current_ticker = "BTC-USD"
 
@@ -141,12 +142,7 @@ def query_agent_llm(prompt: str, context: dict) -> str:
         return (f"📊 **System (Heuristic Mode)**: Asset `{context['ticker']}` | Price: `${context['price']}` | "
                 f"RSI: `{context['rsi']}` | Trend: `{context['trend']}`. Provide a valid Gemini API Key in the sidebar.")
 
-    candidate_models = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash"
-    ]
-    
+    candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     client = genai.Client(api_key=GEMINI_API_KEY)
     system_instruction = (
         "You are an institutional multi-agent trading desk: "
@@ -190,18 +186,21 @@ kpi3.metric("RSI (14)", indicators['rsi'])
 kpi4.metric("20-SMA Trend", indicators['trend'])
 kpi5.metric("ATR Volatility", f"${indicators['atr']}")
 
-# 7. Animated HTML5 Pixel Floor: Server Bay + Agent Desks + Pantry Nook
+# 7. Animated HTML5 Pixel Floor
 pixel_floor_html = """
 <!DOCTYPE html>
 <html>
 <head>
 <style>
   body { margin: 0; padding: 0; background-color: #0e1117; overflow: hidden; font-family: monospace; }
-  canvas { display: block; margin: 0 auto; border: 1px solid #2d3139; border-radius: 8px; background: #12151f; }
+  .container { width: 100%; display: flex; justify-content: center; align-items: center; }
+  canvas { display: block; width: 100%; max-width: 900px; height: auto; border: 1px solid #2d3139; border-radius: 8px; background: #12151f; }
 </style>
 </head>
 <body>
-<canvas id="floor" width="900" height="200"></canvas>
+<div class="container">
+  <canvas id="floor" width="900" height="200"></canvas>
+</div>
 <script>
 const canvas = document.getElementById('floor');
 const ctx = canvas.getContext('2d');
@@ -225,13 +224,11 @@ function drawGrid() {
 }
 
 function drawServerBay() {
-  // Server Cabinet
   ctx.fillStyle = '#1c202c';
   ctx.fillRect(15, 45, 50, 140);
   ctx.strokeStyle = '#3a4154';
   ctx.strokeRect(15, 45, 50, 140);
 
-  // Blinking LEDs
   for(let i = 0; i < 6; i++) {
     let ledColor = ((frame + i * 12) % 40 < 20) ? '#2ecc71' : '#3498db';
     if (i === 4 && frame % 25 < 6) ledColor = '#e74c3c';
@@ -240,7 +237,6 @@ function drawServerBay() {
     ctx.fillRect(34, 55 + i * 20, 24, 4);
   }
 
-  // Network Packet Pulse
   let packetX = (frame * 3) % 700 + 70;
   ctx.fillStyle = '#00f0ff';
   ctx.fillRect(packetX, 35, 8, 2);
@@ -251,7 +247,7 @@ function drawDesk(d) {
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.fillRect(d.x - 40, d.y + 32, 80, 10);
 
-  # Desk Surface
+  // Desk Surface
   ctx.fillStyle = '#252a38';
   ctx.fillRect(d.x - 35, d.y, 70, 32);
   ctx.strokeStyle = '#3d455b';
@@ -264,20 +260,20 @@ function drawDesk(d) {
   ctx.lineWidth = 1.5;
   ctx.strokeRect(d.x - 22, d.y - 24, 44, 20);
 
-  // Animated Screen Data Lines
+  // Animated Screen Data
   ctx.fillStyle = d.color;
   ctx.fillRect(d.x - 18, d.y - 18, 10, 3 + Math.sin(frame * 0.1) * 2);
   ctx.fillRect(d.x - 6, d.y - 14, 12, 4 + Math.cos(frame * 0.1) * 2);
   ctx.fillRect(d.x + 8, d.y - 19, 8, 3 + Math.sin(frame * 0.15) * 2);
 
-  // Pixel Staff Head & Body
+  // Staff Figure
   let bob = Math.sin(frame * 0.12) * 2;
   ctx.fillStyle = '#f1c40f';
   ctx.fillRect(d.x - 5, d.y - 38 + bob, 10, 10);
   ctx.fillStyle = d.color;
   ctx.fillRect(d.x - 8, d.y - 28 + bob, 16, 12);
 
-  // Name Tag
+  // Label Box
   ctx.fillStyle = 'rgba(18, 21, 30, 0.9)';
   ctx.fillRect(d.x - 50, d.y - 58, 100, 14);
   ctx.strokeStyle = '#3a4154';
@@ -291,47 +287,39 @@ function drawDesk(d) {
 }
 
 function drawPantry() {
-  // Pantry Area Divider
   ctx.strokeStyle = '#2d3345';
   ctx.beginPath(); ctx.moveTo(730, 40); ctx.lineTo(730, 185); ctx.stroke();
 
-  // Coffee Machine Table
   ctx.fillStyle = '#222736';
   ctx.fillRect(750, 100, 125, 32);
   ctx.strokeStyle = '#3a4154';
   ctx.strokeRect(750, 100, 125, 32);
 
-  // Espresso Machine
   ctx.fillStyle = '#e74c3c';
   ctx.fillRect(755, 68, 28, 32);
   ctx.fillStyle = '#11131a';
   ctx.fillRect(760, 80, 18, 14);
 
-  // Steam Animation
   let steamY = 62 - (frame % 30) * 0.5;
   let steamAlpha = 1 - ((frame % 30) / 30);
   ctx.fillStyle = `rgba(255, 255, 255, ${steamAlpha})`;
   ctx.beginPath(); ctx.arc(768, steamY, 2.5, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(772, steamY - 4, 1.5, 0, Math.PI * 2); ctx.fill();
 
-  // Water Dispenser
   ctx.fillStyle = '#3498db';
   ctx.beginPath(); ctx.arc(810, 72, 9, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ecf0f1';
   ctx.fillRect(804, 80, 12, 20);
 
-  // Coffee Mug
   ctx.fillStyle = '#f39c12';
   ctx.fillRect(790, 93, 6, 7);
 
-  // Staff in Pantry
   let pantryBob = Math.cos(frame * 0.1) * 1.5;
   ctx.fillStyle = '#e67e22';
-  ctx.fillRect(840, 68 + pantryBob, 10, 10); // Head
+  ctx.fillRect(840, 68 + pantryBob, 10, 10);
   ctx.fillStyle = '#9b59b6';
-  ctx.fillRect(837, 78 + pantryBob, 16, 22); // Shirt/Body
+  ctx.fillRect(837, 78 + pantryBob, 16, 22);
 
-  // Label
   ctx.fillStyle = '#85929e';
   ctx.font = 'bold 9px monospace';
   ctx.textAlign = 'center';
@@ -373,11 +361,11 @@ animate();
 </html>
 """
 
-st.components.v1.html(pixel_floor_html, height=215, scrolling=False)
+components.html(pixel_floor_html, height=215, scrolling=False)
 
 st.markdown("---")
 
-# 8. Main Dashboard Layout (Balanced Columns)
+# 8. Main Dashboard Layout
 col_left, col_right = st.columns([1, 1], gap="medium")
 
 with col_left:
