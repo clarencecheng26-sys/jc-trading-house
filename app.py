@@ -1,9 +1,20 @@
+import streamlit as st
+import streamlit.components.v1 as components
+
+st.set_page_config(
+    page_title="JC Trading House",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Render HTML canvas inside Streamlit
+html_code = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JC Trading House — Animated Pixel Floor</title>
+<title>JC Trading House - Animated Pixel Floor</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -190,7 +201,6 @@ let tickerOffset = 0;
 let newsOffset = 0;
 let selectedAgentIndex = 0;
 
-// Web Audio API Synthesizer
 let audioCtx = null;
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -323,7 +333,6 @@ class StaffMember {
     const typingHand = (this.state === 'DESK') ? Math.sin(frame * 0.4) * 3 : 0;
     const legOffset = isWalking ? Math.sin(frame * 0.28) * 6 : 0;
 
-    // Highlight circle if selected
     if (isSelected) {
       ctx.strokeStyle = '#00f0ff';
       ctx.lineWidth = 2;
@@ -332,30 +341,24 @@ class StaffMember {
       ctx.stroke();
     }
 
-    // Head / Hair
     ctx.fillStyle = this.hairColor;
     ctx.fillRect(this.x - 10, this.y - 42 + bob, 20, 14);
-    // Face
     ctx.fillStyle = '#f1c27d';
     ctx.fillRect(this.x - 8, this.y - 32 + bob, 16, 12);
-    // Eyes
     ctx.fillStyle = '#111';
     ctx.fillRect(this.x - 5, this.y - 28 + bob, 3, 3);
     ctx.fillRect(this.x + 2, this.y - 28 + bob, 3, 3);
-    // Body / Shirt
     ctx.fillStyle = this.shirtColor;
     ctx.fillRect(this.x - 12, this.y - 20 + bob, 24, 18);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(this.x - 3, this.y - 20 + bob, 6, 8);
 
-    // Hands / Typing
     if (this.state === 'DESK') {
       ctx.fillStyle = '#f1c27d';
       ctx.fillRect(this.x - 14, this.y - 10 + typingHand, 5, 8);
       ctx.fillRect(this.x + 9, this.y - 10 - typingHand, 5, 8);
     }
 
-    // Legs
     ctx.fillStyle = '#1e2530';
     if (isWalking) {
       ctx.fillRect(this.x - 9, this.y - 2, 7, 16 + legOffset);
@@ -364,7 +367,6 @@ class StaffMember {
       ctx.fillRect(this.x - 9, this.y - 2 + bob, 18, 16);
     }
 
-    // Floating Nameplate Badge
     let actionTag = "TYPING";
     if (this.state === 'AT_DEST') actionTag = this.destName;
     else if (isWalking) actionTag = "WALKING";
@@ -383,7 +385,6 @@ class StaffMember {
     ctx.textAlign = 'center';
     ctx.fillText(labelText, this.x, this.y - 54 + bob);
 
-    // Floating Thought Bubble
     if (Math.sin(frame * 0.04 + this.x) > 0.2) {
       const bubbleText = `"${this.currentThought}"`;
       ctx.font = '10px monospace';
@@ -412,7 +413,6 @@ const staffMembers = [
 ];
 
 function drawEnvironment() {
-  // Tile Flooring
   for (let x = 0; x < canvas.width; x += 40) {
     for (let y = 40; y < canvas.height - 30; y += 40) {
       ctx.fillStyle = crisisMode 
@@ -425,7 +425,6 @@ function drawEnvironment() {
     }
   }
 
-  // Top Telemetry Bar
   ctx.fillStyle = '#141824';
   ctx.fillRect(0, 0, canvas.width, 40);
   ctx.strokeStyle = '#283144';
@@ -434,9 +433,8 @@ function drawEnvironment() {
 
   ctx.fillStyle = crisisMode ? '#ff4757' : '#2ecc71'; 
   ctx.font = 'bold 12px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(crisisMode ? "🚨 JC TRADING HOUSE — CRISIS ALERT ACTIVE" : "● JC TRADING HOUSE — MAIN FLOOR", 15, 25);
+  ctx.fillText(crisisMode ? "🚨 JC TRADING HOUSE - CRISIS ALERT ACTIVE" : "● JC TRADING HOUSE - MAIN FLOOR", 15, 25);
 
-  // Moving Stock Ticker
   tickerOffset = (tickerOffset + 1.2 * simSpeed) % 1200;
   ctx.fillStyle = '#0d111a'; ctx.fillRect(420, 6, 640, 28);
   ctx.strokeStyle = '#2d374d'; ctx.strokeRect(420, 6, 640, 28);
@@ -458,7 +456,6 @@ function drawEnvironment() {
   ctx.beginPath(); ctx.arc(1085, 20, 5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px monospace'; ctx.fillText("LIVE", 1095, 24);
 
-  // Wall-Mounted Bloomberg TV
   ctx.fillStyle = '#090c12'; ctx.fillRect(480, 55, 240, 85);
   ctx.strokeStyle = '#3a4763'; ctx.lineWidth = 2; ctx.strokeRect(480, 55, 240, 85);
   ctx.fillStyle = '#f39c12'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
@@ -472,7 +469,6 @@ function drawEnvironment() {
   }
   ctx.stroke();
 
-  // Whiteboard Strategy Board
   ctx.fillStyle = '#e8ecef'; ctx.fillRect(260, 55, 190, 85);
   ctx.strokeStyle = '#b0b7c0'; ctx.lineWidth = 3; ctx.strokeRect(260, 55, 190, 85);
   ctx.fillStyle = '#2c3e50'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
@@ -481,7 +477,6 @@ function drawEnvironment() {
   ctx.fillStyle = '#27ae60'; ctx.fillText("MOMENTUM: BULL RUN", 355, 102);
   ctx.fillStyle = '#2980b9'; ctx.fillText("TARGET: +15% ALLOC", 355, 116);
 
-  // High Speed Servers
   ctx.fillStyle = '#141824'; ctx.fillRect(20, 55, 150, 400);
   ctx.strokeStyle = '#2a3448'; ctx.lineWidth = 2; ctx.strokeRect(20, 55, 150, 400);
   ctx.fillStyle = '#00f0ff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
@@ -499,27 +494,23 @@ function drawEnvironment() {
     }
   }
 
-  // Barista Lounge
   ctx.fillStyle = '#141824'; ctx.fillRect(1030, 55, 150, 400);
   ctx.strokeStyle = '#2a3448'; ctx.lineWidth = 2; ctx.strokeRect(1030, 55, 150, 400);
   ctx.fillStyle = '#f39c12'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
   ctx.fillText("☕ BARISTA LOUNGE", 1105, 75);
 
-  // Coffee Machine
   ctx.fillStyle = '#2c3e50'; ctx.fillRect(1050, 110, 110, 65);
   ctx.fillStyle = '#e67e22'; ctx.fillRect(1065, 130, 25, 35);
   let steamY = (frame * 1.5) % 25;
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.beginPath(); ctx.arc(1077, 125 - steamY, 3, 0, Math.PI * 2); ctx.fill();
 
-  // Water Cooler
   ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(1135, 230, 14, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ecf0f1'; ctx.fillRect(1125, 244, 20, 35);
   if (frame % 20 < 10) {
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(1135, 232, 3, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Workstations
   const workstations = [
     { name: "QUANT (ALEX)", x: 270, y: 280, accent: "#2ecc71" },
     { name: "CIO (MARCUS)", x: 500, y: 280, accent: "#3498db" },
@@ -536,7 +527,6 @@ function drawEnvironment() {
     ctx.fillStyle = '#ffffff'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
     ctx.fillText(ws.name, ws.x, ws.y - 77);
 
-    // Candlestick Monitors
     ctx.fillStyle = '#080b12'; ctx.fillRect(ws.x - 30, ws.y - 60, 60, 42);
     ctx.strokeStyle = ws.accent; ctx.lineWidth = 1.5; ctx.strokeRect(ws.x - 30, ws.y - 60, 60, 42);
     
@@ -549,7 +539,6 @@ function drawEnvironment() {
     ctx.fillRect(ws.x + 12, ws.y - 54 - chartShift, 5, 26);
   });
 
-  // News Ticker Marquee
   ctx.fillStyle = '#080b12'; ctx.fillRect(0, 470, canvas.width, 30);
   ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1; ctx.strokeRect(0, 470, canvas.width, 30);
   
@@ -587,7 +576,6 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-// Interaction Controls
 function dispatchAll(destination) {
   initAudio();
   staffMembers.forEach(s => {
@@ -622,7 +610,6 @@ function toggleAudio() {
   if (audioEnabled) playBeep(523.25, 'sine', 0.1);
 }
 
-// Click to Inspect Agent
 canvas.addEventListener('click', (e) => {
   initAudio();
   const rect = canvas.getBoundingClientRect();
@@ -641,8 +628,10 @@ canvas.addEventListener('click', (e) => {
   });
 });
 
-// Launch loop
 animate();
 </script>
 </body>
 </html>
+"""
+
+components.html(html_code, height=750, scrolling=True)
