@@ -13,7 +13,7 @@ try:
 except ImportError:
     HAS_GENAI = False
 
-# 2. Page Config & CSS
+# 2. Streamlit Page Configuration & Dark Theme Styling
 st.set_page_config(
     page_title="JC Trading House",
     page_icon="🏛️",
@@ -23,71 +23,72 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* Full width container optimization */
     .block-container { padding-top: 1.5rem; padding-bottom: 2rem; max-width: 98% !important; }
     .main { background-color: #0e1117; }
-    
-    /* Metric Card styling */
     div[data-testid="stMetricValue"] { font-size: 1.2rem !important; }
     .stMetric { background-color: #161a23; padding: 12px; border-radius: 8px; border: 1px solid #2d3139; }
-    
-    /* Clean chat box styling */
     .stChatInput { border-color: #2d3139 !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# Helper function to prevent Streamlit from misinterpreting dollar signs as LaTeX formulas
+# Helper function: Escapes currency symbols and cleans raw LaTeX markup to avoid rendering errors
 def sanitize_financial_text(text: str) -> str:
     if not text:
         return ""
-    # Strip raw LaTeX commands often produced by LLMs
     clean = re.sub(r'\\mathbf\{([^}]+)\}', r'**\1**', text)
     clean = re.sub(r'\\mathit\{([^}]+)\}', r'*\1*', clean)
     clean = re.sub(r'\\mathbf', '', clean)
-    # Escape raw dollar signs so $357.45 displays as literal text, not math mode
     clean = re.sub(r'(?<!\\)\$(\d+)', r'\\$\1', clean)
     return clean
 
-# 3. Sidebar Controls
-with st.sidebar:
-    st.header("⚙️ Desk Settings")
-    api_key_from_secrets = ""
-    try:
-        if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
-            api_key_from_secrets = st.secrets["GEMINI_API_KEY"]
-    except Exception:
-        pass
+# 3. API Key Retrieval & Validation Integration
+# Retrieve API Key safely inside app.py using Streamlit Secrets or Environment
+GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
 
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or api_key_from_secrets
+with st.sidebar:
+    st.header("⚙️ Desk Controls & API Status")
     
-    user_key = st.text_input("Gemini API Key", value=GEMINI_API_KEY if GEMINI_API_KEY else "", type="password")
-    if user_key:
-        GEMINI_API_KEY = user_key
+    # Optional manual override if st.secrets is not populated
+    manual_key = st.text_input("Gemini API Key (Override)", value=GEMINI_API_KEY, type="password")
+    if manual_key:
+        GEMINI_API_KEY = manual_key
+
+    # Display API Connection Status
+    if not GEMINI_API_KEY:
+        st.error("⚠️ GEMINI_API_KEY is missing from Streamlit Secrets.")
+    else:
+        st.success("✅ GEMINI_API_KEY connected.")
 
     st.markdown("---")
-    st.subheader("📌 Watchlist Selection")
+    st.subheader("📌 Asset Watchlist")
+    
     if "watchlist" not in st.session_state:
         st.session_state.watchlist = ["NVDA", "TSLA", "BTC-USD", "ETH-USD", "S68.SG", "AAPL", "PLTR"]
     if "current_ticker" not in st.session_state:
         st.session_state.current_ticker = "BTC-USD"
 
-    selected_symbol = st.selectbox("Active Asset", options=st.session_state.watchlist, index=st.session_state.watchlist.index(st.session_state.current_ticker) if st.session_state.current_ticker in st.session_state.watchlist else 0)
+    selected_symbol = st.selectbox(
+        "Active Asset", 
+        options=st.session_state.watchlist, 
+        index=st.session_state.watchlist.index(st.session_state.current_ticker) if st.session_state.current_ticker in st.session_state.watchlist else 0
+    )
     if selected_symbol != st.session_state.current_ticker:
         st.session_state.current_ticker = selected_symbol
         st.rerun()
 
     st.markdown("---")
+    st.subheader("🛡️ Portfolio Risk Bounds")
     capital = st.number_input("Account Capital ($)", min_value=1000, max_value=1000000, value=50000, step=5000)
     max_alloc_pct = st.slider("Max Allocation (%)", min_value=1, max_value=100, value=15)
 
-# Session State
+# Session State Initialization
 if "chart_timeframe" not in st.session_state:
     st.session_state.chart_timeframe = "1mo"
 if "sprint_results" not in st.session_state:
     st.session_state.sprint_results = None
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [
-        {"role": "assistant", "content": "🏛️ **JC Trading House Desk**: Operational. Ask any quantitative or risk question regarding your selected asset."}
+        {"role": "assistant", "content": "🏛️ **JC Trading House Desk**: Operational. Select an asset and enter your query to evaluate technical momentum or position risk."}
     ]
 
 # 4. Data & Indicators Engine
@@ -132,10 +133,11 @@ def compute_indicators(df: pd.DataFrame) -> dict:
         "sma20": round(sma20, 2)
     }
 
+# 5. LLM Query Engine
 def query_agent_llm(prompt: str, context: dict) -> str:
     if not HAS_GENAI or not GEMINI_API_KEY:
-        return (f"📊 **System (Heuristic Mode)**: `{context['ticker']}` | Price: `${context['price']}` | "
-                f"RSI: `{context['rsi']}` | Trend: `{context['trend']}`. Please provide a valid Gemini API Key in the sidebar.")
+        return (f"📊 **System (Heuristic)**: Asset `{context['ticker']}` | Price: `${context['price']}` | "
+                f"RSI: `{context['rsi']}` | Trend: `{context['trend']}`. Add `GEMINI_API_KEY` to Streamlit Secrets to enable LLM agents.")
 
     candidate_models = [
         "gemini-2.5-flash",
@@ -145,14 +147,13 @@ def query_agent_llm(prompt: str, context: dict) -> str:
     
     client = genai.Client(api_key=GEMINI_API_KEY)
     system_instruction = (
-        "You are an institutional multi-agent trading desk: "
+        "You are an institutional multi-agent trading desk consisting of: "
         "1. Alex (Quant Agent - Technical momentum, RSI, MACD) "
-        "2. Sarah (Risk Agent - ATR bounds, capital allocation, downside limits) "
-        "3. Marcus (CIO Agent - Final consensus synthesis). "
-        "DO NOT write LaTeX symbols or raw dollar math expressions like \\mathbf or $350$. "
-        "Format currency cleanly with standard numbers like $350.00."
+        "2. Sarah (Risk Agent - ATR bounds, capital allocation) "
+        "3. Marcus (CIO Agent - Final decision synthesis). "
+        "Format dollar numbers clearly without raw LaTeX math tags (e.g. use $350.00 instead of \\mathbf{350})."
     )
-    full_prompt = f"Market Context for {context['ticker']}: {context}\n\nUser Question: {prompt}"
+    full_prompt = f"Market Data for {context['ticker']}: {context}\n\nUser Question: {prompt}"
 
     last_error = ""
     for model_id in candidate_models:
@@ -170,11 +171,11 @@ def query_agent_llm(prompt: str, context: dict) -> str:
             last_error = str(e)
             continue
 
-    return f"⚠️ **AI Agent Desk Error**: API call failed. Details: `{last_error}`"
+    return f"⚠️ **AI Desk Error**: Unable to execute query. API error: `{last_error}`"
 
-# 5. Header & Top Telemetry
+# 6. Header Telemetry Bar
 st.title("🏛️ JC TRADING HOUSE")
-st.caption("Institutional Multi-Agent Trading Floor & Live Telemetry")
+st.caption("Institutional Multi-Agent Trading Desk & Real-time Market Analytics")
 
 df_current = fetch_asset_data(st.session_state.current_ticker, "1mo")
 indicators = compute_indicators(df_current)
@@ -189,11 +190,11 @@ kpi5.metric("ATR Volatility", f"${indicators['atr']}")
 
 st.markdown("---")
 
-# 6. Main Dashboard Layout (2 Equal Columns)
+# 7. Main Dashboard Layout (Balanced Columns)
 col_left, col_right = st.columns([1, 1], gap="medium")
 
 with col_left:
-    st.subheader(f"📊 {st.session_state.current_ticker} Market Telemetry")
+    st.subheader(f"📊 {st.session_state.current_ticker} Price Chart")
     t1, t2, t3, t4 = st.columns(4)
     if t1.button("1D", use_container_width=True): st.session_state.chart_timeframe = "1d"; st.rerun()
     if t2.button("5D", use_container_width=True): st.session_state.chart_timeframe = "5d"; st.rerun()
@@ -242,7 +243,6 @@ with col_right:
         st.info("🔴 Desk idle. Click **Dispatch Strategy Sprint** on the left to evaluate orders.")
 
     st.markdown("##### 💬 Live Desk Q&A Terminal")
-    # Expanded height to 380px so messages don't disappear off screen
     chat_box = st.container(height=380)
     with chat_box:
         for msg in st.session_state.chat_history:
