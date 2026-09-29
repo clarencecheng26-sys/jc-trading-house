@@ -14,7 +14,7 @@ try:
 except ImportError:
     HAS_GENAI = False
 
-# 2. Streamlit Page Configuration & Styling
+# 2. Streamlit Page Configuration & Custom CSS
 st.set_page_config(
     page_title="JC Trading House",
     page_icon="🏛️",
@@ -24,7 +24,7 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    .block-container { padding-top: 1.5rem; padding-bottom: 2rem; max-width: 98% !important; }
+    .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 98% !important; }
     .main { background-color: #0e1117; }
     div[data-testid="stMetricValue"] { font-size: 1.2rem !important; }
     .stMetric { background-color: #161a23; padding: 12px; border-radius: 8px; border: 1px solid #2d3139; }
@@ -32,7 +32,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Helper function: Cleans raw LaTeX markup and escapes currency symbols
+# Helper function: Sanitizes LaTeX and escapes currency symbols
 def sanitize_financial_text(text: str) -> str:
     if not text:
         return ""
@@ -50,6 +50,7 @@ try:
 except Exception:
     pass
 
+# Sidebar Controls & Watchlist Management
 with st.sidebar:
     st.header("⚙️ Desk Controls & API Status")
     
@@ -63,7 +64,7 @@ with st.sidebar:
         st.success("✅ GEMINI_API_KEY connected.")
 
     st.markdown("---")
-    st.subheader("📌 Asset Watchlist")
+    st.subheader("📌 Watchlist Management")
     
     if "watchlist" not in st.session_state:
         st.session_state.watchlist = ["BTC-USD", "NVDA", "TSLA", "ETH-USD", "S68.SG", "AAPL", "PLTR"]
@@ -78,6 +79,30 @@ with st.sidebar:
     if selected_symbol != st.session_state.current_ticker:
         st.session_state.current_ticker = selected_symbol
         st.rerun()
+
+    # Asset Addition & Deletion Controls
+    with st.expander("➕ Add / Remove Asset"):
+        new_asset = st.text_input("New Asset Ticker (e.g. MSFT, GC=F)").strip().upper()
+        col_add, col_del = st.columns(2)
+        with col_add:
+            if st.button("Add Symbol", use_container_width=True):
+                if new_asset and new_asset not in st.session_state.watchlist:
+                    st.session_state.watchlist.append(new_asset)
+                    st.session_state.current_ticker = new_asset
+                    st.success(f"Added {new_asset}")
+                    st.rerun()
+                elif new_asset in st.session_state.watchlist:
+                    st.warning("Already in Watchlist.")
+        with col_del:
+            if st.button("Delete Active", use_container_width=True):
+                if len(st.session_state.watchlist) > 1:
+                    removed = st.session_state.current_ticker
+                    st.session_state.watchlist.remove(removed)
+                    st.session_state.current_ticker = st.session_state.watchlist[0]
+                    st.success(f"Removed {removed}")
+                    st.rerun()
+                else:
+                    st.error("Min 1 asset required.")
 
     st.markdown("---")
     st.subheader("🛡️ Portfolio Risk Bounds")
@@ -99,51 +124,54 @@ if "chat_history" not in st.session_state:
 def fetch_asset_data(ticker_symbol: str, timeframe: str) -> pd.DataFrame:
     interval_map = {"1d": "5m", "5d": "15m", "1mo": "1d", "6mo": "1d"}
     interval = interval_map.get(timeframe, "1d")
-    asset = yf.Ticker(ticker_symbol)
-    return asset.history(period=timeframe, interval=interval)
+    try:
+        asset = yf.Ticker(ticker_symbol)
+        df = asset.history(period=timeframe, interval=interval)
+        return df if df is not None else pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
 
 def compute_indicators(df: pd.DataFrame) -> dict:
-    if df.empty or len(df) < 20:
+    if df.empty or len(df) < 5:
         return {"price": 0.0, "rsi": 50.0, "macd": 0.0, "macd_signal": 0.0, "atr": 0.0, "trend": "NEUTRAL", "sma20": 0.0}
     
     close = df['Close']
     latest_price = float(close.iloc[-1])
 
     delta = close.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    gain = (delta.where(delta > 0, 0)).rolling(window=min(14, len(df))).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=min(14, len(df))).mean()
     rs = gain / (loss + 1e-9)
-    rsi = float((100 - (100 / (1 + rs))).iloc[-1])
+    rsi = float((100 - (100 / (1 + rs))).iloc[-1]) if not rs.empty else 50.0
 
     ema12 = close.ewm(span=12, adjust=False).mean()
     ema26 = close.ewm(span=26, adjust=False).mean()
     macd = ema12 - ema26
     macd_signal = macd.ewm(span=9, adjust=False).mean()
 
-    sma20 = float(close.rolling(window=20).mean().iloc[-1])
+    sma20 = float(close.rolling(window=min(20, len(df))).mean().iloc[-1])
     tr = pd.concat([df['High']-df['Low'], (df['High']-df['Close'].shift()).abs(), (df['Low']-df['Close'].shift()).abs()], axis=1).max(axis=1)
-    atr = float(tr.rolling(14).mean().iloc[-1]) if len(tr) >= 14 else float(tr.mean())
+    atr = float(tr.rolling(min(14, len(df))).mean().iloc[-1]) if len(tr) > 0 else 0.0
 
     trend = "BULLISH" if latest_price > sma20 else "BEARISH" if latest_price < sma20 else "NEUTRAL"
 
     return {
         "price": round(latest_price, 2),
         "rsi": round(rsi, 2),
-        "macd": round(float(macd.iloc[-1]), 3),
-        "macd_signal": round(float(macd_signal.iloc[-1]), 3),
+        "macd": round(float(macd.iloc[-1]), 3) if not macd.empty else 0.0,
+        "macd_signal": round(float(macd_signal.iloc[-1]), 3) if not macd_signal.empty else 0.0,
         "atr": round(atr, 2),
         "trend": trend,
         "sma20": round(sma20, 2)
     }
 
-# 5. LLM Query Engine
+# 5. Robust Multi-Model LLM Query Engine
 def query_agent_llm(prompt: str, context: dict) -> str:
-    if not HAS_GENAI or not GEMINI_API_KEY:
+    if not GEMINI_API_KEY:
         return (f"📊 **System (Heuristic Mode)**: Asset `{context['ticker']}` | Price: `${context['price']}` | "
                 f"RSI: `{context['rsi']}` | Trend: `{context['trend']}`. Provide a valid Gemini API Key in the sidebar.")
 
     candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-    client = genai.Client(api_key=GEMINI_API_KEY)
     system_instruction = (
         "You are an institutional multi-agent trading desk: "
         "1. Alex (Quant Agent - Technical momentum, RSI, MACD) "
@@ -154,20 +182,48 @@ def query_agent_llm(prompt: str, context: dict) -> str:
     full_prompt = f"Market Context for {context['ticker']}: {context}\n\nUser Question: {prompt}"
 
     last_error = ""
-    for model_id in candidate_models:
+
+    # Strategy 1: google.genai Client
+    if HAS_GENAI:
         try:
-            response = client.models.generate_content(
-                model=model_id,
-                contents=full_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.3,
-                )
-            )
-            return sanitize_financial_text(response.text)
+            client = genai.Client(api_key=GEMINI_API_KEY)
+            for model_id in candidate_models:
+                try:
+                    response = client.models.generate_content(
+                        model=model_id,
+                        contents=full_prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            temperature=0.3,
+                        )
+                    )
+                    if response and response.text:
+                        return sanitize_financial_text(response.text)
+                except Exception as e:
+                    last_error = str(e)
+                    continue
         except Exception as e:
             last_error = str(e)
-            continue
+
+    # Strategy 2: Legacy google.generativeai Fallback
+    try:
+        import google.generativeai as legacy_genai
+        legacy_genai.configure(api_key=GEMINI_API_KEY)
+        for model_id in candidate_models:
+            try:
+                model = legacy_genai.GenerativeModel(
+                    model_name=model_id,
+                    system_instruction=system_instruction
+                )
+                response = model.generate_content(full_prompt)
+                if response and response.text:
+                    return sanitize_financial_text(response.text)
+            except Exception as e:
+                last_error = str(e)
+                continue
+    except Exception as e:
+        if not last_error:
+            last_error = str(e)
 
     return f"⚠️ **AI Agent Desk Error**: API query failed. Detail: `{last_error}`"
 
@@ -186,32 +242,144 @@ kpi3.metric("RSI (14)", indicators['rsi'])
 kpi4.metric("20-SMA Trend", indicators['trend'])
 kpi5.metric("ATR Volatility", f"${indicators['atr']}")
 
-# 7. Animated Responsive HTML5 Pixel Floor (Aligned & High Readability)
+# 7. Animated HTML5 Pixel Floor with Autonomous Walking Staff & Responsive Scaling
 pixel_floor_html = """
 <!DOCTYPE html>
 <html>
 <head>
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; padding: 0; background-color: #0e1117; overflow: hidden; font-family: 'Courier New', monospace; }
-  .canvas-wrapper { width: 100%; display: block; padding: 0; margin: 0; }
-  canvas { display: block; width: 100%; height: 215px; border: 1px solid #2d3139; border-radius: 8px; background: #12151f; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #0e1117; font-family: monospace; }
+  .canvas-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; width: 100%; height: 100%; border: 1px solid #2d3139; border-radius: 8px; background: #12151f; }
 </style>
 </head>
 <body>
 <div class="canvas-wrapper">
-  <canvas id="floor" width="1300" height="215"></canvas>
+  <canvas id="floor" width="1400" height="250"></canvas>
 </div>
 <script>
 const canvas = document.getElementById('floor');
 const ctx = canvas.getContext('2d');
 let frame = 0;
 
-// Re-balanced spacing across 1300px canvas width
-const desks = [
-  { name: 'ALEX (QUANT)', x: 320, y: 108, color: '#2ecc71' },
-  { name: 'MARCUS (CIO)', x: 610, y: 96, color: '#f39c12' },
-  { name: 'SARAH (RISK)', x: 900, y: 108, color: '#e74c3c' }
+// Autonomous Pixel Staff Class
+class StaffMember {
+  constructor(name, deskX, deskY, color, hairColor) {
+    this.name = name;
+    this.deskX = deskX;
+    this.deskY = deskY;
+    this.x = deskX;
+    this.y = deskY;
+    this.color = color;
+    this.hairColor = hairColor;
+    this.state = 'DESK'; // DESK, WALKING_OUT, AT_DEST, WALKING_BACK
+    this.timer = Math.floor(Math.random() * 150) + 100;
+    this.targetX = deskX;
+    this.targetY = deskY;
+    this.destName = '';
+  }
+
+  update() {
+    if (this.state === 'DESK') {
+      this.timer--;
+      if (this.timer <= 0) {
+        if (Math.random() < 0.6) {
+          this.targetX = 1200 + Math.random() * 50; // Break room pantry
+          this.destName = 'PANTRY';
+        } else {
+          this.targetX = 85 + Math.random() * 20;   // Server bay
+          this.destName = 'SERVER';
+        }
+        this.targetY = 145;
+        this.state = 'WALKING_OUT';
+      }
+    } else if (this.state === 'WALKING_OUT') {
+      const dx = this.targetX - this.x;
+      const dy = this.targetY - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 4) {
+        this.x = this.targetX;
+        this.y = this.targetY;
+        this.state = 'AT_DEST';
+        this.timer = Math.floor(Math.random() * 140) + 90;
+      } else {
+        const speed = 1.4;
+        this.x += (dx / dist) * speed;
+        this.y += (dy / dist) * speed;
+      }
+    } else if (this.state === 'AT_DEST') {
+      this.timer--;
+      if (this.timer <= 0) {
+        this.targetX = this.deskX;
+        this.targetY = this.deskY;
+        this.state = 'WALKING_BACK';
+      }
+    } else if (this.state === 'WALKING_BACK') {
+      const dx = this.targetX - this.x;
+      const dy = this.targetY - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 4) {
+        this.x = this.deskX;
+        this.y = this.deskY;
+        this.state = 'DESK';
+        this.timer = Math.floor(Math.random() * 220) + 140;
+      } else {
+        const speed = 1.4;
+        this.x += (dx / dist) * speed;
+        this.y += (dy / dist) * speed;
+      }
+    }
+  }
+
+  draw() {
+    const isWalking = (this.state === 'WALKING_OUT' || this.state === 'WALKING_BACK');
+    const bob = (this.state === 'DESK') ? Math.sin(frame * 0.12) * 1.5 : 0;
+    const legOffset = isWalking ? Math.sin(frame * 0.25) * 4 : 0;
+
+    // Head
+    ctx.fillStyle = this.hairColor;
+    ctx.fillRect(this.x - 6, this.y - 38 + bob, 12, 12);
+
+    // Shirt / Torso
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x - 8, this.y - 26 + bob, 16, 14);
+
+    // Legs
+    ctx.fillStyle = '#2c3e50';
+    if (isWalking) {
+      ctx.fillRect(this.x - 6, this.y - 12, 5, 12 + legOffset);
+      ctx.fillRect(this.x + 1, this.y - 12, 5, 12 - legOffset);
+    } else {
+      ctx.fillRect(this.x - 6, this.y - 12 + bob, 12, 12);
+    }
+
+    // Label Text
+    let label = this.name;
+    if (this.state === 'AT_DEST') {
+      label = (this.destName === 'PANTRY') ? `${this.name} ☕` : `${this.name} ⚙️`;
+    } else if (isWalking) {
+      label = `${this.name} 🚶`;
+    }
+
+    ctx.fillStyle = '#161a23';
+    ctx.fillRect(this.x - 60, this.y - 62, 120, 18);
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(this.x - 60, this.y - 62, 120, 18);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, this.x, this.y - 49);
+  }
+}
+
+// Staff Instances
+const staffList = [
+  new StaffMember('ALEX (QUANT)', 360, 125, '#2ecc71', '#f1c40f'),
+  new StaffMember('MARCUS (CIO)', 680, 115, '#f39c12', '#e67e22'),
+  new StaffMember('SARAH (RISK)', 1000, 125, '#e74c3c', '#9b59b6')
 ];
 
 function drawGrid() {
@@ -226,159 +394,140 @@ function drawGrid() {
 }
 
 function drawServerBay() {
-  // Server Cabinet
   ctx.fillStyle = '#1c202c';
-  ctx.fillRect(25, 45, 75, 150);
+  ctx.fillRect(25, 48, 80, 160);
   ctx.strokeStyle = '#3a4154';
   ctx.lineWidth = 1.5;
-  ctx.strokeRect(25, 45, 75, 150);
+  ctx.strokeRect(25, 48, 80, 160);
 
-  // Blinking LEDs
   for(let i = 0; i < 6; i++) {
     let ledColor = ((frame + i * 12) % 40 < 20) ? '#2ecc71' : '#3498db';
     if (i === 4 && frame % 25 < 6) ledColor = '#e74c3c';
     ctx.fillStyle = ledColor;
-    ctx.fillRect(35, 58 + i * 22, 10, 8);
-    ctx.fillRect(52, 58 + i * 22, 38, 6);
+    ctx.fillRect(35, 62 + i * 24, 10, 8);
+    ctx.fillRect(52, 62 + i * 24, 42, 6);
   }
 
-  // Network Packet Pulse
-  let packetX = (frame * 4) % 1000 + 110;
+  let packetX = (frame * 4) % 1100 + 120;
   ctx.fillStyle = '#00f0ff';
-  ctx.fillRect(packetX, 38, 12, 3);
+  ctx.fillRect(packetX, 40, 14, 3);
 
-  // Label Box
   ctx.fillStyle = '#12151f';
-  ctx.fillRect(20, 198, 85, 14);
+  ctx.fillRect(20, 212, 90, 16);
   ctx.fillStyle = '#00f0ff';
-  ctx.font = 'bold 10px monospace';
+  ctx.font = 'bold 11px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText("SERVERS", 62, 209);
+  ctx.fillText("SERVER BAY", 65, 224);
 }
 
-function drawDesk(d) {
-  // Floor Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fillRect(d.x - 55, d.y + 42, 110, 12);
+function drawDesks() {
+  const deskLocations = [
+    { name: 'QUANT DESK', x: 360, y: 125, color: '#2ecc71' },
+    { name: 'CIO DESK', x: 680, y: 115, color: '#f39c12' },
+    { name: 'RISK DESK', x: 1000, y: 125, color: '#e74c3c' }
+  ];
 
-  // Desk Surface
-  ctx.fillStyle = '#252a38';
-  ctx.fillRect(d.x - 50, d.y, 100, 42);
-  ctx.strokeStyle = '#3d455b';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(d.x - 50, d.y, 100, 42);
+  deskLocations.forEach(d => {
+    // Floor Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(d.x - 55, d.y + 36, 110, 12);
 
-  // Dual Monitors
-  ctx.fillStyle = '#11131a';
-  ctx.fillRect(d.x - 38, d.y - 32, 76, 28);
-  ctx.strokeStyle = d.color;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(d.x - 38, d.y - 32, 76, 28);
+    // Desk Surface
+    ctx.fillStyle = '#252a38';
+    ctx.fillRect(d.x - 50, d.y, 100, 42);
+    ctx.strokeStyle = '#3d455b';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(d.x - 50, d.y, 100, 42);
 
-  // Screen Data Lines
-  ctx.fillStyle = d.color;
-  ctx.fillRect(d.x - 30, d.y - 24, 18, 4 + Math.sin(frame * 0.1) * 2);
-  ctx.fillRect(d.x - 8, d.y - 20, 20, 5 + Math.cos(frame * 0.1) * 2);
-  ctx.fillRect(d.x + 16, d.y - 25, 14, 4 + Math.sin(frame * 0.15) * 2);
+    // Dual Monitors
+    ctx.fillStyle = '#11131a';
+    ctx.fillRect(d.x - 38, d.y - 30, 76, 28);
+    ctx.strokeStyle = d.color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(d.x - 38, d.y - 30, 76, 28);
 
-  // Staff Head & Body
-  let bob = Math.sin(frame * 0.12) * 2.5;
-  ctx.fillStyle = '#f1c40f';
-  ctx.fillRect(d.x - 7, d.y - 50 + bob, 14, 14);
-  ctx.fillStyle = d.color;
-  ctx.fillRect(d.x - 12, d.y - 36 + bob, 24, 16);
-
-  // Large Readable Name Tag
-  ctx.fillStyle = '#161a23';
-  ctx.fillRect(d.x - 70, d.y - 75, 140, 20);
-  ctx.strokeStyle = d.color;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(d.x - 70, d.y - 75, 140, 20);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 12px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(d.name, d.x, d.y - 61);
+    // Screen Graphics
+    ctx.fillStyle = d.color;
+    ctx.fillRect(d.x - 30, d.y - 22, 18, 4 + Math.sin(frame * 0.1) * 2);
+    ctx.fillRect(d.x - 8, d.y - 18, 20, 5 + Math.cos(frame * 0.1) * 2);
+    ctx.fillRect(d.x + 16, d.y - 23, 14, 4 + Math.sin(frame * 0.15) * 2);
+  });
 }
 
 function drawPantry() {
-  // Divider Line
   ctx.strokeStyle = '#2d3345';
   ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(1050, 35); ctx.lineTo(1050, 200); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(1140, 40); ctx.lineTo(1140, 215); ctx.stroke();
 
-  // Break Room Table
+  // Table
   ctx.fillStyle = '#222736';
-  ctx.fillRect(1075, 118, 200, 42);
+  ctx.fillRect(1160, 125, 210, 42);
   ctx.strokeStyle = '#3a4154';
   ctx.lineWidth = 1.5;
-  ctx.strokeRect(1075, 118, 200, 42);
+  ctx.strokeRect(1160, 125, 210, 42);
 
   // Espresso Machine
   ctx.fillStyle = '#e74c3c';
-  ctx.fillRect(1085, 76, 40, 42);
+  ctx.fillRect(1170, 83, 42, 42);
   ctx.fillStyle = '#11131a';
-  ctx.fillRect(1092, 92, 26, 18);
+  ctx.fillRect(1178, 100, 26, 18);
 
   // Steam Animation
-  let steamY = 70 - (frame % 30) * 0.6;
+  let steamY = 76 - (frame % 30) * 0.6;
   let steamAlpha = 1 - ((frame % 30) / 30);
   ctx.fillStyle = `rgba(255, 255, 255, ${steamAlpha})`;
-  ctx.beginPath(); ctx.arc(1105, steamY, 3.5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(1112, steamY - 6, 2.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1191, steamY, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1198, steamY - 6, 2.5, 0, Math.PI * 2); ctx.fill();
 
-  // Water Cooler
+  // Water Dispenser
   ctx.fillStyle = '#3498db';
-  ctx.beginPath(); ctx.arc(1160, 80, 13, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1250, 88, 14, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ecf0f1';
-  ctx.fillRect(1150, 93, 20, 25);
+  ctx.fillRect(1240, 101, 20, 24);
 
-  // Staff Figure in Pantry
-  let pantryBob = Math.cos(frame * 0.1) * 2;
-  ctx.fillStyle = '#e67e22';
-  ctx.fillRect(1225, 74 + pantryBob, 14, 14);
-  ctx.fillStyle = '#9b59b6';
-  ctx.fillRect(1220, 88 + pantryBob, 24, 30);
-
-  // Prominent Header Sign
+  // Header Sign
   ctx.fillStyle = '#161a23';
-  ctx.fillRect(1075, 42, 200, 22);
+  ctx.fillRect(1160, 48, 210, 22);
   ctx.strokeStyle = '#f39c12';
   ctx.lineWidth = 1;
-  ctx.strokeRect(1075, 42, 200, 22);
+  ctx.strokeRect(1160, 48, 210, 22);
 
   ctx.fillStyle = '#f39c12';
   ctx.font = 'bold 11px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText("☕ BREAK ROOM & PANTRY", 1175, 57);
+  ctx.fillText("☕ BREAK ROOM & PANTRY", 1265, 63);
 }
 
 function drawHUD() {
   ctx.fillStyle = '#161a23';
-  ctx.fillRect(0, 0, canvas.width, 32);
+  ctx.fillRect(0, 0, canvas.width, 36);
   ctx.strokeStyle = '#2d3345';
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, 32); ctx.lineTo(canvas.width, 32); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 36); ctx.lineTo(canvas.width, 36); ctx.stroke();
 
   ctx.fillStyle = '#2ecc71';
   ctx.font = 'bold 12px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText("● JC TRADING HOUSE — FLOOR & PANTRY TELEMETRY", 15, 21);
+  ctx.fillText("● JC TRADING HOUSE — FLOOR & PANTRY TELEMETRY", 18, 23);
 
   let alpha = (Math.sin(frame * 0.1) + 1) / 2;
   ctx.fillStyle = `rgba(46, 204, 113, ${alpha})`;
-  ctx.beginPath(); ctx.arc(1240, 18, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(1335, 20, 5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 11px monospace';
-  ctx.fillText("LIVE", 1252, 21);
+  ctx.fillText("LIVE", 1348, 23);
 }
 
 function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid();
   drawServerBay();
-  desks.forEach(drawDesk);
+  drawDesks();
   drawPantry();
+  
+  // Update and draw walking staff
+  staffList.forEach(s => { s.update(); s.draw(); });
+
   drawHUD();
   frame++;
   requestAnimationFrame(animate);
@@ -389,11 +538,11 @@ animate();
 </html>
 """
 
-components.html(pixel_floor_html, height=225, scrolling=False)
+components.html(pixel_floor_html, height=270, scrolling=False)
 
 st.markdown("---")
 
-# 8. Main Dashboard Layout (Balanced 2-Column Grid)
+# 8. Main Dashboard Layout (2-Column Grid)
 col_left, col_right = st.columns([1, 1], gap="medium")
 
 with col_left:
@@ -416,6 +565,8 @@ with col_left:
             yaxis=dict(gridcolor='#1e222a', tickfont=dict(color='#85929e'))
         )
         st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning(f"Unable to fetch price data for symbol `{st.session_state.current_ticker}`. Verify ticker symbol in sidebar.")
 
     if st.button("🚀 Dispatch Strategy Sprint", type="primary", use_container_width=True):
         with st.spinner("🏛️ Multi-agent evaluation in progress..."):
